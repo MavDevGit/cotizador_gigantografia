@@ -283,13 +283,14 @@ class OrdenTrabajoAdapter extends TypeAdapter<OrdenTrabajo> {
       horaEntrega: fields[9] as TimeOfDay,
       creadoEn: fields[10] as DateTime,
       creadoPorUsuarioId: fields[11] as String,
+      archivos: (fields[12] as List?)?.cast<ArchivoAdjunto>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, OrdenTrabajo obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -313,7 +314,9 @@ class OrdenTrabajoAdapter extends TypeAdapter<OrdenTrabajo> {
       ..writeByte(10)
       ..write(obj.creadoEn)
       ..writeByte(11)
-      ..write(obj.creadoPorUsuarioId);
+      ..write(obj.creadoPorUsuarioId)
+      ..writeByte(12)
+      ..write(obj.archivos);
   }
 
   @override
@@ -323,6 +326,64 @@ class OrdenTrabajoAdapter extends TypeAdapter<OrdenTrabajo> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OrdenTrabajoAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class ArchivoAdjuntoAdapter extends TypeAdapter<ArchivoAdjunto> {
+  @override
+  final int typeId = 7;
+
+  @override
+  ArchivoAdjunto read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return ArchivoAdjunto(
+      id: fields[0] as String,
+      nombre: fields[1] as String,
+      rutaArchivo: fields[2] as String,
+      tipoMime: fields[3] as String,
+      tamano: fields[4] as int,
+      fechaSubida: fields[5] as DateTime,
+      subidoPorUsuarioId: fields[6] as String,
+      subidoPorUsuarioNombre: fields[7] as String,
+      descripcion: fields[8] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, ArchivoAdjunto obj) {
+    writer
+      ..writeByte(9)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.nombre)
+      ..writeByte(2)
+      ..write(obj.rutaArchivo)
+      ..writeByte(3)
+      ..write(obj.tipoMime)
+      ..writeByte(4)
+      ..write(obj.tamano)
+      ..writeByte(5)
+      ..write(obj.fechaSubida)
+      ..writeByte(6)
+      ..write(obj.subidoPorUsuarioId)
+      ..writeByte(7)
+      ..write(obj.subidoPorUsuarioNombre)
+      ..writeByte(8)
+      ..write(obj.descripcion);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ArchivoAdjuntoAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

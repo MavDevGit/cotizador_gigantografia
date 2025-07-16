@@ -10,9 +10,129 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:mime/mime.dart';
+import 'package:open_file/open_file.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
+import 'dart:typed_data';
 
 // You need to generate these files with 'flutter pub run build_runner build'
 part 'main.g.dart';
+
+// -------------------
+// --- ARCHIVO SERVICE ---
+// -------------------
+
+class ArchivoService {
+  static Future<Directory> _getAppDocumentsDirectory() async {
+    final directory = await getApplicationDocumentsDirectory();
+    final archivosDir = Directory('${directory.path}/archivos_adjuntos');
+    if (!await archivosDir.exists()) {
+      await archivosDir.create(recursive: true);
+    }
+    return archivosDir;
+  }
+
+  static Future<List<ArchivoAdjunto>> seleccionarArchivos(
+    String usuarioId,
+    String usuarioNombre,
+  ) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.any,
+        allowedExtensions: null,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        List<ArchivoAdjunto> archivos = [];
+        final appDir = await _getAppDocumentsDirectory();
+
+        for (PlatformFile file in result.files) {
+          if (file.path != null) {
+            // Generar nombre único para el archivo
+            final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+            final String destinationPath = '${appDir.path}/$fileName';
+            
+            // Copiar archivo al directorio de la aplicación
+            await File(file.path!).copy(destinationPath);
+            
+            // Obtener tipo MIME
+            final String mimeType = lookupMimeType(destinationPath) ?? 'application/octet-stream';
+            
+            // Crear objeto ArchivoAdjunto
+            final archivo = ArchivoAdjunto(
+              id: Random().nextDouble().toString(),
+              nombre: file.name,
+              rutaArchivo: destinationPath,
+              tipoMime: mimeType,
+              tamano: file.size,
+              fechaSubida: DateTime.now(),
+              subidoPorUsuarioId: usuarioId,
+              subidoPorUsuarioNombre: usuarioNombre,
+            );
+            
+            archivos.add(archivo);
+          }
+        }
+        
+        return archivos;
+      }
+      
+      return [];
+    } catch (e) {
+      print('Error al seleccionar archivos: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> eliminarArchivo(ArchivoAdjunto archivo) async {
+    try {
+      final file = File(archivo.rutaArchivo);
+      if (await file.exists()) {
+        await file.delete();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error al eliminar archivo: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> abrirArchivo(ArchivoAdjunto archivo) async {
+    try {
+      final file = File(archivo.rutaArchivo);
+      if (await file.exists()) {
+        final result = await OpenFile.open(archivo.rutaArchivo);
+        return result.type == ResultType.done;
+      }
+      return false;
+    } catch (e) {
+      print('Error al abrir archivo: $e');
+      return false;
+    }
+  }
+
+  static Future<void> limpiarArchivosOrfanos() async {
+    try {
+      final appDir = await _getAppDocumentsDirectory();
+      final archivos = appDir.listSync();
+      
+      // Aquí podrías implementar lógica para eliminar archivos que ya no están
+      // referenciados en ninguna orden de trabajo
+      
+      print('Limpieza de archivos completada');
+    } catch (e) {
+      print('Error en limpieza de archivos: $e');
+    }
+  }
+}
 
 // -------------------
 // --- RESPONSIVE UTILITIES ---
@@ -865,6 +985,8 @@ class OrdenTrabajo extends HiveObject {
   DateTime creadoEn;
   @HiveField(11)
   String creadoPorUsuarioId;
+  @HiveField(12)
+  List<ArchivoAdjunto> archivos;
 
   double get totalBruto => trabajos.fold(0.0, (prev, item) => prev + item.precioFinal);
   
@@ -897,7 +1019,104 @@ class OrdenTrabajo extends HiveObject {
     required this.horaEntrega,
     required this.creadoEn,
     required this.creadoPorUsuarioId,
+    List<ArchivoAdjunto>? archivos,
+  }) : archivos = archivos ?? [];
+}
+
+@HiveType(typeId: 7)
+class ArchivoAdjunto extends HiveObject {
+  @HiveField(0)
+  String id;
+  @HiveField(1)
+  String nombre;
+  @HiveField(2)
+  String rutaArchivo;
+  @HiveField(3)
+  String tipoMime;
+  @HiveField(4)
+  int tamano;
+  @HiveField(5)
+  DateTime fechaSubida;
+  @HiveField(6)
+  String subidoPorUsuarioId;
+  @HiveField(7)
+  String subidoPorUsuarioNombre;
+  @HiveField(8)
+  String? descripcion;
+
+  ArchivoAdjunto({
+    required this.id,
+    required this.nombre,
+    required this.rutaArchivo,
+    required this.tipoMime,
+    required this.tamano,
+    required this.fechaSubida,
+    required this.subidoPorUsuarioId,
+    required this.subidoPorUsuarioNombre,
+    this.descripcion,
   });
+
+  // Método para obtener el tamaño formateado
+  String get tamanoFormateado {
+    if (tamano < 1024) {
+      return '$tamano B';
+    } else if (tamano < 1024 * 1024) {
+      return '${(tamano / 1024).toStringAsFixed(1)} KB';
+    } else {
+      return '${(tamano / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+  }
+
+  // Método para obtener el tipo de archivo
+  String get tipoArchivo {
+    if (tipoMime.startsWith('image/')) {
+      return 'Imagen';
+    } else if (tipoMime.startsWith('video/')) {
+      return 'Video';
+    } else if (tipoMime.startsWith('audio/')) {
+      return 'Audio';
+    } else if (tipoMime.contains('pdf')) {
+      return 'PDF';
+    } else if (tipoMime.contains('word') || tipoMime.contains('document')) {
+      return 'Documento';
+    } else if (tipoMime.contains('excel') || tipoMime.contains('spreadsheet')) {
+      return 'Hoja de cálculo';
+    } else if (tipoMime.contains('presentation')) {
+      return 'Presentación';
+    } else if (tipoMime.startsWith('text/')) {
+      return 'Texto';
+    } else {
+      return 'Archivo';
+    }
+  }
+
+  // Método para obtener el icono según el tipo
+  IconData get icono {
+    if (tipoMime.startsWith('image/')) {
+      return Icons.image_rounded;
+    } else if (tipoMime.startsWith('video/')) {
+      return Icons.video_file_rounded;
+    } else if (tipoMime.startsWith('audio/')) {
+      return Icons.audio_file_rounded;
+    } else if (tipoMime.contains('pdf')) {
+      return Icons.picture_as_pdf_rounded;
+    } else if (tipoMime.contains('word') || tipoMime.contains('document')) {
+      return Icons.description_rounded;
+    } else if (tipoMime.contains('excel') || tipoMime.contains('spreadsheet')) {
+      return Icons.table_chart_rounded;
+    } else if (tipoMime.contains('presentation')) {
+      return Icons.present_to_all_rounded;
+    } else if (tipoMime.startsWith('text/')) {
+      return Icons.text_snippet_rounded;
+    } else {
+      return Icons.attach_file_rounded;
+    }
+  }
+
+  // Método para verificar si el archivo existe
+  Future<bool> exists() async {
+    return await File(rutaArchivo).exists();
+  }
 }
 
 // *** FIX: Added custom TimeOfDayAdapter ***
@@ -1010,6 +1229,17 @@ class AppState extends ChangeNotifier {
     await _ordenesBox.put(orden.id, orden);
     notifyListeners();
   }
+
+  Future<void> addArchivosAOrden(OrdenTrabajo orden, List<ArchivoAdjunto> archivos) async {
+    orden.archivos.addAll(archivos);
+    await updateOrden(orden, 'Se agregaron ${archivos.length} archivo(s) adjunto(s)');
+  }
+
+  Future<void> removeArchivoDeOrden(OrdenTrabajo orden, ArchivoAdjunto archivo) async {
+    orden.archivos.removeWhere((a) => a.id == archivo.id);
+    await ArchivoService.eliminarArchivo(archivo);
+    await updateOrden(orden, 'Se eliminó el archivo adjunto: ${archivo.nombre}');
+  }
   
   Future<void> addTrabajo(Trabajo trabajo) async {
     await _trabajosBox.put(trabajo.id, trabajo);
@@ -1098,6 +1328,7 @@ Future<void> main() async {
   Hive.registerAdapter(OrdenTrabajoTrabajoAdapter());
   Hive.registerAdapter(OrdenHistorialAdapter());
   Hive.registerAdapter(OrdenTrabajoAdapter());
+  Hive.registerAdapter(ArchivoAdjuntoAdapter());
   Hive.registerAdapter(TimeOfDayAdapter()); // *** FIX: Now this adapter is defined ***
 
   // Opening Hive Boxes
@@ -1284,6 +1515,825 @@ class CotizadorApp extends StatelessWidget {
         color: Color(0xFFF3F4F6),
         thickness: 1,
         space: 1,
+      ),
+    );
+  }
+}
+
+// -------------------
+// --- IMAGE VIEWER ---
+// -------------------
+
+class ImageViewer extends StatefulWidget {
+  final List<ArchivoAdjunto> imagenes;
+  final int initialIndex;
+
+  const ImageViewer({
+    super.key,
+    required this.imagenes,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<ImageViewer> createState() => _ImageViewerState();
+}
+
+class _ImageViewerState extends State<ImageViewer> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text(
+          '${_currentIndex + 1} de ${widget.imagenes.length}',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: isMobile ? 16 : 18,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.open_in_new,
+              color: Colors.white,
+              size: isMobile ? 20 : 24,
+            ),
+            onPressed: () => _abrirEnAplicacionExterna(),
+            tooltip: 'Abrir con app externa',
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.info_outline,
+              color: Colors.white,
+              size: isMobile ? 20 : 24,
+            ),
+            onPressed: () => _mostrarInfo(),
+            tooltip: 'Información',
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          PhotoViewGallery.builder(
+            pageController: _pageController,
+            itemCount: widget.imagenes.length,
+            builder: (context, index) {
+              return PhotoViewGalleryPageOptions(
+                imageProvider: FileImage(File(widget.imagenes[index].rutaArchivo)),
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.covered * (isMobile ? 2.5 : 3),
+                heroAttributes: PhotoViewHeroAttributes(tag: widget.imagenes[index].id),
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade800,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: isMobile ? 48 : 64,
+                            color: Colors.white54,
+                          ),
+                          SizedBox(height: isMobile ? 12 : 16),
+                          Text(
+                            'Error al cargar la imagen',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: isMobile ? 14 : 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            backgroundDecoration: const BoxDecoration(color: Colors.black),
+            loadingBuilder: (context, event) {
+              if (event == null) {
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: isMobile ? 2 : 4,
+                  ),
+                );
+              }
+              return Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: isMobile ? 2 : 4,
+                  value: event.expectedTotalBytes != null
+                      ? event.cumulativeBytesLoaded / event.expectedTotalBytes!
+                      : null,
+                ),
+              );
+            },
+          ),
+          // Controles de navegación
+          if (widget.imagenes.length > 1)
+            Positioned(
+              bottom: isMobile ? 60 : 80,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.arrow_back_ios,
+                            color: Colors.white,
+                            size: isMobile ? 18 : 24,
+                          ),
+                          onPressed: _currentIndex > 0
+                              ? () {
+                                  _pageController.previousPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                }
+                              : null,
+                        ),
+                        Text(
+                          '${_currentIndex + 1} / ${widget.imagenes.length}',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isMobile ? 14 : 16,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.white,
+                            size: isMobile ? 18 : 24,
+                          ),
+                          onPressed: _currentIndex < widget.imagenes.length - 1
+                              ? () {
+                                  _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut,
+                                  );
+                                }
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: Container(
+        color: Colors.black,
+        padding: EdgeInsets.symmetric(
+          vertical: isMobile ? 6.0 : 8.0,
+          horizontal: isMobile ? 12.0 : 16.0,
+        ),
+        child: SafeArea(
+          child: Text(
+            widget.imagenes[_currentIndex].nombre,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isMobile ? 14 : 16,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: isMobile ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _abrirEnAplicacionExterna() async {
+    try {
+      await ArchivoService.abrirArchivo(widget.imagenes[_currentIndex]);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al abrir archivo: $e')),
+      );
+    }
+  }
+
+  void _mostrarInfo() {
+    final archivo = widget.imagenes[_currentIndex];
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Información del archivo',
+          style: TextStyle(fontSize: isMobile ? 16 : 18),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow('Nombre:', archivo.nombre),
+              _buildInfoRow('Tipo:', archivo.tipoArchivo),
+              _buildInfoRow('Tamaño:', archivo.tamanoFormateado),
+              _buildInfoRow('Subido por:', archivo.subidoPorUsuarioNombre),
+              _buildInfoRow('Fecha:', DateFormat('dd/MM/yyyy HH:mm').format(archivo.fechaSubida)),
+              if (archivo.descripcion != null)
+                _buildInfoRow('Descripción:', archivo.descripcion!),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    return Padding(
+      padding: EdgeInsets.only(bottom: isMobile ? 6.0 : 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: isMobile ? 80 : 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 12 : 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: isMobile ? 12 : 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -------------------
+// --- ARCHIVO WIDGETS ---
+// -------------------
+
+class ArchivosAdjuntosWidget extends StatefulWidget {
+  final OrdenTrabajo orden;
+  final bool isReadOnly;
+
+  const ArchivosAdjuntosWidget({
+    super.key,
+    required this.orden,
+    this.isReadOnly = false,
+  });
+
+  @override
+  State<ArchivosAdjuntosWidget> createState() => _ArchivosAdjuntosWidgetState();
+}
+
+class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
+  bool _isLoading = false;
+
+  Future<void> _adjuntarArchivos() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final user = appState.currentUser!;
+      
+      final archivos = await ArchivoService.seleccionarArchivos(
+        user.id,
+        user.nombre,
+      );
+
+      if (archivos.isNotEmpty) {
+        await appState.addArchivosAOrden(widget.orden, archivos);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Se agregaron ${archivos.length} archivo(s) adjunto(s)'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al adjuntar archivos: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _eliminarArchivo(ArchivoAdjunto archivo) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar eliminación'),
+        content: Text('¿Está seguro de que desea eliminar el archivo "${archivo.nombre}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final appState = Provider.of<AppState>(context, listen: false);
+        await appState.removeArchivoDeOrden(widget.orden, archivo);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Archivo eliminado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al eliminar archivo: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _abrirArchivo(ArchivoAdjunto archivo) async {
+    try {
+      if (archivo.tipoMime.startsWith('image/')) {
+        // Para imágenes, abrir el visor de galería
+        final imagenes = widget.orden.archivos
+            .where((a) => a.tipoMime.startsWith('image/'))
+            .toList();
+        final initialIndex = imagenes.indexOf(archivo);
+        
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ImageViewer(
+                imagenes: imagenes,
+                initialIndex: initialIndex >= 0 ? initialIndex : 0,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Para otros tipos de archivos, abrir con aplicación externa
+        final success = await ArchivoService.abrirArchivo(archivo);
+        if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo abrir el archivo'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al abrir archivo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _mostrarDetallesArchivo(ArchivoAdjunto archivo) async {
+    final existeArchivo = await archivo.exists();
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(archivo.icono, size: isMobile ? 20 : 24),
+              SizedBox(width: isMobile ? 6 : 8),
+              Expanded(
+                child: Text(
+                  archivo.nombre,
+                  style: TextStyle(fontSize: isMobile ? 16 : 18),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetalleRow('Tipo:', archivo.tipoArchivo),
+                _buildDetalleRow('Tamaño:', archivo.tamanoFormateado),
+                _buildDetalleRow('Fecha:', DateFormat('dd/MM/yyyy HH:mm').format(archivo.fechaSubida)),
+                _buildDetalleRow('Subido por:', archivo.subidoPorUsuarioNombre),
+                _buildDetalleRow('Estado:', existeArchivo ? 'Disponible' : 'Archivo no encontrado'),
+                if (archivo.descripcion != null && archivo.descripcion!.isNotEmpty)
+                  _buildDetalleRow('Descripción:', archivo.descripcion!),
+              ],
+            ),
+          ),
+          actions: [
+            if (existeArchivo)
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _abrirArchivo(archivo);
+                },
+                icon: Icon(Icons.open_in_new, size: isMobile ? 16 : 20),
+                label: Text(
+                  'Abrir',
+                  style: TextStyle(fontSize: isMobile ? 12 : 14),
+                ),
+              ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cerrar',
+                style: TextStyle(fontSize: isMobile ? 12 : 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Color _getFileTypeColor(String tipoMime) {
+    if (tipoMime.startsWith('image/')) {
+      return Colors.purple;
+    } else if (tipoMime.startsWith('video/')) {
+      return Colors.red;
+    } else if (tipoMime.startsWith('audio/')) {
+      return Colors.orange;
+    } else if (tipoMime.contains('pdf')) {
+      return Colors.red.shade700;
+    } else if (tipoMime.contains('word') || tipoMime.contains('document')) {
+      return Colors.blue;
+    } else if (tipoMime.contains('excel') || tipoMime.contains('spreadsheet')) {
+      return Colors.green;
+    } else if (tipoMime.contains('presentation')) {
+      return Colors.orange.shade700;
+    } else if (tipoMime.startsWith('text/')) {
+      return Colors.grey.shade700;
+    } else {
+      return Colors.grey;
+    }
+  }
+
+  Widget _buildDetalleRow(String label, String value) {
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    return Padding(
+      padding: EdgeInsets.only(bottom: isMobile ? 6.0 : 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: isMobile ? 80 : 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 12 : 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: isMobile ? 12 : 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = ResponsiveBreakpoints.isMobile(context);
+    
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Archivos Adjuntos',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 18 : null,
+                    ),
+                  ),
+                ),
+                if (!widget.isReadOnly)
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _adjuntarArchivos,
+                    icon: _isLoading 
+                      ? SizedBox(
+                          width: isMobile ? 14 : 16,
+                          height: isMobile ? 14 : 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.attach_file_rounded, size: isMobile ? 16 : 20),
+                    label: Text(isMobile ? 'Adjuntar' : 'Adjuntar'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : 12,
+                        vertical: isMobile ? 4 : 8,
+                      ),
+                      textStyle: TextStyle(fontSize: isMobile ? 12 : 14),
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
+            
+            if (widget.orden.archivos.isEmpty)
+              Container(
+                padding: EdgeInsets.all(isMobile ? 24 : 32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.folder_open_rounded,
+                      size: isMobile ? 48 : 64,
+                      color: Colors.grey[400],
+                    ),
+                    SizedBox(height: isMobile ? 12 : 16),
+                    Text(
+                      'No hay archivos adjuntos',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.grey[600],
+                        fontSize: isMobile ? 14 : null,
+                      ),
+                    ),
+                    if (!widget.isReadOnly) ...[
+                      SizedBox(height: isMobile ? 6 : 8),
+                      Text(
+                        'Haga clic en "Adjuntar" para agregar archivos',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                          fontSize: isMobile ? 12 : null,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: widget.orden.archivos.map((archivo) {
+                  return Container(
+                    margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.grey.withOpacity(0.3),
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : 16,
+                        vertical: isMobile ? 4 : 8,
+                      ),
+                      leading: archivo.tipoMime.startsWith('image/') 
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: isMobile ? 40 : 50,
+                                height: isMobile ? 40 : 50,
+                                child: Image.file(
+                                  File(archivo.rutaArchivo),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                      child: Icon(
+                                        archivo.icono,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: isMobile ? 18 : 24,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            )
+                          : CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              radius: isMobile ? 20 : 25,
+                              child: Icon(
+                                archivo.icono,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: isMobile ? 18 : 24,
+                              ),
+                            ),
+                      title: Text(
+                        archivo.nombre,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: isMobile ? 13 : 14,
+                        ),
+                        maxLines: isMobile ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: isMobile ? 2 : 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 6 : 8,
+                                  vertical: isMobile ? 1 : 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getFileTypeColor(archivo.tipoMime).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  archivo.tipoArchivo,
+                                  style: TextStyle(
+                                    color: _getFileTypeColor(archivo.tipoMime),
+                                    fontSize: isMobile ? 10 : 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: isMobile ? 4 : 8),
+                              Text(
+                                archivo.tamanoFormateado,
+                                style: TextStyle(fontSize: isMobile ? 11 : 12),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isMobile ? 1 : 2),
+                          Text(
+                            'Subido por ${archivo.subidoPorUsuarioNombre} • ${DateFormat('dd/MM/yyyy HH:mm').format(archivo.fechaSubida)}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: isMobile ? 10 : 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: isMobile
+                          ? PopupMenuButton<String>(
+                              icon: Icon(Icons.more_vert_rounded, size: 18),
+                              onSelected: (value) {
+                                switch (value) {
+                                  case 'open':
+                                    _abrirArchivo(archivo);
+                                    break;
+                                  case 'info':
+                                    _mostrarDetallesArchivo(archivo);
+                                    break;
+                                  case 'delete':
+                                    if (!widget.isReadOnly) {
+                                      _eliminarArchivo(archivo);
+                                    }
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  value: 'open',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.visibility_rounded, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('Abrir'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'info',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline_rounded, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('Detalles'),
+                                    ],
+                                  ),
+                                ),
+                                if (!widget.isReadOnly)
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete_rounded, size: 16, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.visibility_rounded),
+                                  onPressed: () => _abrirArchivo(archivo),
+                                  tooltip: 'Abrir archivo',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.info_outline_rounded),
+                                  onPressed: () => _mostrarDetallesArchivo(archivo),
+                                  tooltip: 'Ver detalles',
+                                ),
+                                if (!widget.isReadOnly)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_rounded, color: Colors.red),
+                                    onPressed: () => _eliminarArchivo(archivo),
+                                    tooltip: 'Eliminar',
+                                  ),
+                              ],
+                            ),
+                      onTap: () => _abrirArchivo(archivo),
+                    ),
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2643,19 +3693,43 @@ class _CotizarScreenState extends State<CotizarScreen> {
             ),
             const SizedBox(height: 20),
             
-            // Botón de archivos
-            OutlinedButton.icon(
-              icon: const Icon(Icons.attach_file_rounded),
-              label: const Text("Adjuntar Archivos"),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 48),
+            // Widget de archivos adjuntos para nueva orden
+            if (_trabajosEnOrden.isNotEmpty) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Archivos Adjuntos',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.attach_file_rounded),
+                        label: const Text("Adjuntar Archivos"),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Los archivos se pueden adjuntar después de guardar la orden. "
+                                "Podrá acceder a esta funcionalidad desde la pantalla de detalle de la orden.",
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Funcionalidad no implementada.")),
-                );
-              },
-            ),
+            ],
           ],
         ),
       ),
@@ -3293,6 +4367,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   void initState() {
     super.initState();
     // Clone the order for local editing to avoid modifying the original object directly
+    // NOTE: NO clonamos archivos porque se manejan directamente por el widget ArchivosAdjuntosWidget
     _ordenEditable = OrdenTrabajo(
       id: widget.orden.id,
       cliente: widget.orden.cliente,
@@ -3305,7 +4380,8 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       fechaEntrega: widget.orden.fechaEntrega,
       horaEntrega: widget.orden.horaEntrega,
       creadoEn: widget.orden.creadoEn,
-      creadoPorUsuarioId: widget.orden.creadoPorUsuarioId
+      creadoPorUsuarioId: widget.orden.creadoPorUsuarioId,
+      archivos: widget.orden.archivos, // Referencia directa, no copia
     );
 
     _totalPersonalizadoController = TextEditingController(text: _ordenEditable.totalPersonalizado?.toString() ?? '');
@@ -3324,6 +4400,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       _formKey.currentState!.save();
       
       // Update the original order with the edited values
+      // NOTE: NO actualizamos archivos porque se manejan directamente por el widget ArchivosAdjuntosWidget
       widget.orden.cliente = _ordenEditable.cliente;
       widget.orden.trabajos = _ordenEditable.trabajos;
       widget.orden.adelanto = _ordenEditable.adelanto;
@@ -3332,6 +4409,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
       widget.orden.estado = _ordenEditable.estado;
       widget.orden.fechaEntrega = _ordenEditable.fechaEntrega;
       widget.orden.horaEntrega = _ordenEditable.horaEntrega;
+      // widget.orden.archivos = _ordenEditable.archivos; // REMOVIDO: No sobreescribir archivos
       
       Provider.of<AppState>(context, listen: false).updateOrden(widget.orden, "Orden actualizada.");
       Navigator.pop(context, true); // Return true to indicate changes were made
@@ -3861,6 +4939,11 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           onSaved: (value) => _ordenEditable.notas = value,
         ),
         FormSpacing.verticalLarge(),
+        
+        // --- ARCHIVOS ADJUNTOS SECTION ---
+        ArchivosAdjuntosWidget(orden: widget.orden),
+        FormSpacing.verticalLarge(),
+        
         // --- SAVE BUTTON ---
         ElevatedButton.icon(
           icon: const Icon(Icons.save_rounded),

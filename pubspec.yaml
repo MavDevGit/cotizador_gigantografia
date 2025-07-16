@@ -36,6 +36,21 @@ dependencies:
   
   # Para obtener información del dispositivo
   device_info_plus: ^10.1.0
+  
+  # Manejo de archivos
+  file_picker: ^8.0.0+1
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  mime: ^1.0.4
+  
+  # Abrir archivos con aplicaciones externas
+  open_file: ^3.3.2
+  
+  # Visor de imágenes
+  photo_view: ^0.14.0
+  
+  # Utilidades adicionales
+  url_launcher: ^6.2.2
 
 # Dependencias de desarrollo (solo para compilación y testing)
 dev_dependencies:
