@@ -29,6 +29,13 @@ dependencies:
 
   # Iconos de Material Design
   cupertino_icons: ^1.0.8
+  
+  # Generación de PDF y impresión
+  pdf: ^3.10.7
+  printing: ^5.12.0
+  
+  # Para obtener información del dispositivo
+  device_info_plus: ^10.1.0
 
 # Dependencias de desarrollo (solo para compilación y testing)
 dev_dependencies:
