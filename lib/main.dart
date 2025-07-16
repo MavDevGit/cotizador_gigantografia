@@ -20,6 +20,11 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // You need to generate these files with 'flutter pub run build_runner build'
 part 'main.g.dart';
@@ -208,6 +213,421 @@ class FormSpacing {
 }
 
 // -------------------
+// --- NOTIFICATION SERVICE ---
+// -------------------
+
+class NotificationService {
+  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  static bool _isInitialized = false;
+
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    // Inicializar timezone
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('America/La_Paz')); // Bolivia timezone
+
+    // Configuración para Android
+    const AndroidInitializationSettings androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    // Configuración para iOS (si planeas soportarlo)
+    const DarwinInitializationSettings iosInitSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInitSettings,
+      iOS: iosInitSettings,
+    );
+
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        if (response.payload != null) {
+          print('Notificación tocada: ${response.payload}');
+        }
+      },
+    );
+
+    // Solicitar permisos para Android 13+
+    await _requestPermissions();
+
+    // Inicializar Workmanager para notificaciones en background
+    await Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: false,
+    );
+
+    _isInitialized = true;
+  }
+
+  static Future<void> _requestPermissions() async {
+    // Para flutter_local_notifications v17.2.3
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        
+    if (androidImplementation != null) {
+      final bool? granted = await androidImplementation.requestNotificationsPermission();
+      if (granted != null && granted) {
+        print('Permisos de notificación concedidos');
+      }
+    }
+  }
+
+  // Método removido - no es necesario para la versión 13.0.0
+  // static void _onNotificationTap(NotificationResponse response) {
+  //   print('Notificación tocada: ${response.payload}');
+  // }
+
+  // Programar notificaciones para una orden de trabajo
+  static Future<void> scheduleOrderNotifications(OrdenTrabajo orden) async {
+    print('📅 scheduleOrderNotifications: Iniciando para orden ${orden.id}');
+    
+    if (!_isInitialized) await initialize();
+
+    // Solo notificar si está en proceso
+    if (orden.estado != 'en_proceso') {
+      print('📅 No se programan notificaciones - Estado: ${orden.estado}');
+      return;
+    }
+
+    // Cancelar notificaciones existentes para esta orden
+    await cancelOrderNotifications(orden.id);
+
+    final now = DateTime.now();
+    final deliveryDateTime = DateTime(
+      orden.fechaEntrega.year,
+      orden.fechaEntrega.month,
+      orden.fechaEntrega.day,
+      orden.horaEntrega.hour,
+      orden.horaEntrega.minute,
+    );
+
+    print('📅 Fecha/hora actual: $now');
+    print('📅 Fecha/hora de entrega: $deliveryDateTime');
+
+    // Si la fecha de entrega ya pasó, no programar notificaciones
+    if (deliveryDateTime.isBefore(now)) {
+      print('📅 No se programan notificaciones - Fecha de entrega ya pasó');
+      return;
+    }
+
+    final timeUntilDelivery = deliveryDateTime.difference(now);
+    final isToday = _isSameDay(now, deliveryDateTime);
+
+    print('📅 Tiempo hasta entrega: ${timeUntilDelivery.inMinutes} minutos');
+    print('📅 Es hoy: $isToday');
+
+    List<NotificationSchedule> schedules = [];
+
+    if (isToday) {
+      // Si es hoy, notificar 15 minutos antes
+      if (timeUntilDelivery.inMinutes > 15) {
+        final notificationTime = deliveryDateTime.subtract(const Duration(minutes: 15));
+        print('📅 Programando notificación para: $notificationTime (15 min antes)');
+        schedules.add(NotificationSchedule(
+          id: '${orden.id}_15min',
+          title: 'Entrega en 15 minutos',
+          body: 'Orden #${orden.id.substring(0, 8)} para ${orden.cliente.nombre}',
+          scheduledTime: notificationTime,
+          payload: orden.id,
+        ));
+      } else {
+        print('📅 No se programa notificación - Faltan solo ${timeUntilDelivery.inMinutes} minutos');
+      }
+    } else {
+      // Si es otro día, notificar 2 horas y 1 hora antes
+      if (timeUntilDelivery.inHours > 2) {
+        final notificationTime = deliveryDateTime.subtract(const Duration(hours: 2));
+        print('📅 Programando notificación para: $notificationTime (2 horas antes)');
+        schedules.add(NotificationSchedule(
+          id: '${orden.id}_2h',
+          title: 'Entrega en 2 horas',
+          body: 'Orden #${orden.id.substring(0, 8)} para ${orden.cliente.nombre}',
+          scheduledTime: notificationTime,
+          payload: orden.id,
+        ));
+      }
+      
+      if (timeUntilDelivery.inHours > 1) {
+        final notificationTime = deliveryDateTime.subtract(const Duration(hours: 1));
+        print('📅 Programando notificación para: $notificationTime (1 hora antes)');
+        schedules.add(NotificationSchedule(
+          id: '${orden.id}_1h',
+          title: 'Entrega en 1 hora',
+          body: 'Orden #${orden.id.substring(0, 8)} para ${orden.cliente.nombre}',
+          scheduledTime: notificationTime,
+          payload: orden.id,
+        ));
+      }
+    }
+
+    print('📅 Total de notificaciones a programar: ${schedules.length}');
+
+    // Programar las notificaciones
+    for (final schedule in schedules) {
+      await _scheduleNotification(schedule);
+      print('📅 Notificación programada: ${schedule.id} para ${schedule.scheduledTime}');
+    }
+
+    // Programar verificación en background
+    await _scheduleBackgroundCheck(orden);
+    print('📅 Verificación en background programada');
+    
+    // Mostrar notificación inmediata informando que se programaron las notificaciones
+    if (schedules.isNotEmpty) {
+      String mensaje;
+      if (schedules.length == 1) {
+        final schedule = schedules.first;
+        final timeStr = DateFormat('HH:mm dd/MM/yyyy').format(schedule.scheduledTime);
+        mensaje = 'Notificación programada para ${timeStr}';
+      } else {
+        mensaje = '${schedules.length} notificaciones programadas para esta orden';
+      }
+      
+      await showImmediateNotification(
+        title: '📅 Notificaciones Programadas',
+        body: 'Orden #${orden.id.substring(0, 8)} - $mensaje',
+        payload: 'schedule_info_${orden.id}',
+      );
+    }
+  }
+
+  static Future<void> _scheduleNotification(NotificationSchedule schedule) async {
+    print('🔔 _scheduleNotification: Programando ${schedule.id} para ${schedule.scheduledTime}');
+    
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'order_delivery_channel',
+      'Entregas de Órdenes',
+      channelDescription: 'Notificaciones para entregas de órdenes de trabajo',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: Color(0xFF98CA3F),
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    try {
+      await _notifications.zonedSchedule(
+        schedule.id.hashCode,
+        schedule.title,
+        schedule.body,
+        tz.TZDateTime.from(schedule.scheduledTime, tz.local),
+        notificationDetails,
+        androidAllowWhileIdle: true,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        payload: schedule.payload,
+      );
+      print('🔔 ✅ Notificación ${schedule.id} programada exitosamente');
+    } catch (e) {
+      print('🔔 ❌ Error al programar notificación ${schedule.id}: $e');
+    }
+  }
+
+  static Future<void> _scheduleBackgroundCheck(OrdenTrabajo orden) async {
+    await Workmanager().registerOneOffTask(
+      'check_order_${orden.id}',
+      'checkOrderDelivery',
+      initialDelay: const Duration(minutes: 5),
+      inputData: {
+        'orderId': orden.id,
+        'clienteName': orden.cliente.nombre,
+        'deliveryDate': orden.fechaEntrega.toIso8601String(),
+        'deliveryHour': orden.horaEntrega.hour,
+        'deliveryMinute': orden.horaEntrega.minute,
+      },
+    );
+  }
+
+  // Cancelar notificaciones para una orden específica
+  static Future<void> cancelOrderNotifications(String orderId) async {
+    print('🗑️ cancelOrderNotifications: Cancelando notificaciones para orden $orderId');
+    
+    final notifications = [
+      '${orderId}_15min',
+      '${orderId}_1h',
+      '${orderId}_2h',
+    ];
+
+    for (final notificationId in notifications) {
+      try {
+        await _notifications.cancel(notificationId.hashCode);
+        print('🗑️ ✅ Notificación $notificationId cancelada');
+      } catch (e) {
+        print('🗑️ ❌ Error al cancelar notificación $notificationId: $e');
+      }
+    }
+
+    // Cancelar tarea de background
+    try {
+      await Workmanager().cancelByUniqueName('check_order_$orderId');
+      print('🗑️ ✅ Tarea de background cancelada para orden $orderId');
+    } catch (e) {
+      print('🗑️ ❌ Error al cancelar tarea de background para orden $orderId: $e');
+    }
+  }
+
+  // Cancelar todas las notificaciones
+  static Future<void> cancelAllNotifications() async {
+    await _notifications.cancelAll();
+    await Workmanager().cancelAll();
+  }
+
+  // Actualizar notificaciones cuando cambia el estado, fecha o hora de la orden
+  static Future<void> updateOrderNotifications(OrdenTrabajo orden) async {
+    print('🔄 updateOrderNotifications: Iniciando para orden ${orden.id}');
+    print('🔄 Estado de la orden: ${orden.estado}');
+    print('🔄 Fecha de entrega: ${orden.fechaEntrega}');
+    print('🔄 Hora de entrega: ${orden.horaEntrega}');
+    
+    // Primero cancelar todas las notificaciones existentes para esta orden
+    await cancelOrderNotifications(orden.id);
+    print('🔄 Notificaciones canceladas para orden ${orden.id}');
+    
+    // Mostrar notificación inmediata informando que se cancelaron las notificaciones
+    await showImmediateNotification(
+      title: '🔄 Notificaciones Reprogramadas',
+      body: 'Orden #${orden.id.substring(0, 8)} - Canceladas notificaciones anteriores',
+      payload: 'cancel_info_${orden.id}',
+    );
+    
+    // Luego programar nuevas notificaciones si la orden está en proceso
+    if (orden.estado == 'en_proceso') {
+      print('🔄 Programando nuevas notificaciones para orden ${orden.id}');
+      await scheduleOrderNotifications(orden);
+    } else {
+      print('🔄 No se programan notificaciones - Estado: ${orden.estado}');
+      await showImmediateNotification(
+        title: '🔄 Notificaciones No Programadas',
+        body: 'Orden #${orden.id.substring(0, 8)} - Estado: ${orden.estado}',
+        payload: 'no_schedule_info_${orden.id}',
+      );
+    }
+  }
+
+  // Verificar si dos fechas son del mismo día
+  static bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+           date1.month == date2.month &&
+           date1.day == date2.day;
+  }
+
+  // Notificación inmediata (para pruebas o casos especiales)
+  static Future<void> showImmediateNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    if (!_isInitialized) await initialize();
+
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'immediate_channel',
+      'Notificaciones Inmediatas',
+      channelDescription: 'Notificaciones que se muestran inmediatamente',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: Color(0xFF98CA3F),
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await _notifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
+  }
+
+  // Función de prueba para verificar que las notificaciones funcionan
+  static Future<void> testNotification() async {
+    await showImmediateNotification(
+      title: '🧪 Prueba de Notificación',
+      body: 'Si ves esto, el sistema de notificaciones funciona correctamente!',
+      payload: 'test_notification',
+    );
+    print('🧪 Notificación de prueba enviada');
+  }
+
+  // Obtener notificaciones pendientes (para debugging)
+  static Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _notifications.pendingNotificationRequests();
+  }
+}
+
+// Clase auxiliar para programar notificaciones
+class NotificationSchedule {
+  final String id;
+  final String title;
+  final String body;
+  final DateTime scheduledTime;
+  final String payload;
+
+  NotificationSchedule({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.scheduledTime,
+    required this.payload,
+  });
+}
+
+// Callback para Workmanager (debe estar fuera de la clase)
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    switch (task) {
+      case 'checkOrderDelivery':
+        await _handleOrderDeliveryCheck(inputData);
+        break;
+    }
+    return Future.value(true);
+  });
+}
+
+// Función para verificar entregas en background
+Future<void> _handleOrderDeliveryCheck(Map<String, dynamic>? inputData) async {
+  if (inputData == null) return;
+
+  final orderId = inputData['orderId'] as String;
+  final clienteName = inputData['clienteName'] as String;
+  final deliveryDate = DateTime.parse(inputData['deliveryDate'] as String);
+  final deliveryHour = inputData['deliveryHour'] as int;
+  final deliveryMinute = inputData['deliveryMinute'] as int;
+
+  final deliveryDateTime = DateTime(
+    deliveryDate.year,
+    deliveryDate.month,
+    deliveryDate.day,
+    deliveryHour,
+    deliveryMinute,
+  );
+
+  final now = DateTime.now();
+  final timeUntilDelivery = deliveryDateTime.difference(now);
+
+  // Si faltan menos de 5 minutos, mostrar notificación de urgencia
+  if (timeUntilDelivery.inMinutes <= 5 && timeUntilDelivery.inMinutes > 0) {
+    await NotificationService.showImmediateNotification(
+      title: '¡Entrega URGENTE!',
+      body: 'Orden #${orderId.substring(0, 8)} para $clienteName en ${timeUntilDelivery.inMinutes} minutos',
+      payload: orderId,
+    );
+  }
+}
+
+// -------------------
 // --- PDF GENERATOR ---
 // -------------------
 
@@ -232,7 +652,7 @@ class PDFGenerator {
     
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.letter, // Cambiado a tamaño carta
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -281,7 +701,7 @@ class PDFGenerator {
     
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.letter, // Cambiado a tamaño carta
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -329,7 +749,7 @@ class PDFGenerator {
     
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.letter, // Cambiado a tamaño carta
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -826,6 +1246,12 @@ class Trabajo extends HiveObject implements SoftDeletable {
     this.eliminadoEn,
   });
 
+  double calcularPrecio(double ancho, double alto, int cantidad, double adicional) {
+    final area = ancho * alto;
+    final precioBase = area * precioM2 * cantidad;
+    return precioBase + adicional;
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -1153,16 +1579,48 @@ class AppState extends ChangeNotifier {
   late Box<Trabajo> _trabajosBox;
   late Box<OrdenTrabajo> _ordenesBox;
   late Box<Usuario> _usuariosBox;
+  
+  // SharedPreferences para configuraciones
+  late SharedPreferences _prefs;
+
+  // Configuración de notificaciones
+  bool _notificationsEnabled = true;
+  
+  bool get notificationsEnabled => _notificationsEnabled;
+  
+  void setNotificationsEnabled(bool enabled) {
+    _notificationsEnabled = enabled;
+    notifyListeners();
+    _saveNotificationSettings();
+  }
+
+  Future<void> _saveNotificationSettings() async {
+    await _prefs.setBool('notifications_enabled', _notificationsEnabled);
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    _notificationsEnabled = _prefs.getBool('notifications_enabled') ?? true;
+  }
 
   AppState() {
     // Initialization is now async and happens in main()
   }
 
   Future<void> init() async {
+    // Inicializar SharedPreferences
+    _prefs = await SharedPreferences.getInstance();
+    
     _clientesBox = Hive.box<Cliente>('clientes');
     _trabajosBox = Hive.box<Trabajo>('trabajos');
     _ordenesBox = Hive.box<OrdenTrabajo>('ordenes');
     _usuariosBox = Hive.box<Usuario>('usuarios');
+    
+    // Cargar configuraciones
+    await _loadNotificationSettings();
+    
+    // Inicializar servicio de notificaciones
+    await NotificationService.initialize();
+    
     await _createDefaultAdminUser();
     notifyListeners();
   }
@@ -1213,10 +1671,22 @@ class AppState extends ChangeNotifier {
   // --- CRUD methods now write to Hive boxes ---
   Future<void> addOrden(OrdenTrabajo orden) async {
     await _ordenesBox.put(orden.id, orden);
+    
+    // Programar notificaciones si está habilitado
+    if (_notificationsEnabled) {
+      await NotificationService.scheduleOrderNotifications(orden);
+    }
+    
     notifyListeners();
   }
   
   Future<void> updateOrden(OrdenTrabajo orden, String cambio) async {
+    print('🔄 updateOrden: Iniciando actualización para orden ${orden.id}');
+    print('🔄 Cambio: $cambio');
+    
+    // Obtener la orden actual para comparar cambios
+    final ordenActual = _ordenesBox.get(orden.id);
+    
     orden.historial.add(OrdenHistorial(
       id: Random().nextDouble().toString(),
       cambio: cambio,
@@ -1227,7 +1697,72 @@ class AppState extends ChangeNotifier {
     
     // Ensure the order is saved to Hive
     await _ordenesBox.put(orden.id, orden);
+    
+    // Verificar si cambió el estado, fecha o hora
+    final estadoCambio = ordenActual != null && ordenActual.estado != orden.estado;
+    final fechaCambio = ordenActual != null && (
+      ordenActual.fechaEntrega != orden.fechaEntrega ||
+      ordenActual.horaEntrega.hour != orden.horaEntrega.hour ||
+      ordenActual.horaEntrega.minute != orden.horaEntrega.minute
+    );
+    
+    print('🔄 Estado cambió: $estadoCambio');
+    print('🔄 Fecha/hora cambió: $fechaCambio');
+    print('🔄 Notificaciones habilitadas: $_notificationsEnabled');
+    
+    // Reprogramar notificaciones si está habilitado y cambió el estado, fecha o hora
+    if (_notificationsEnabled && (estadoCambio || fechaCambio)) {
+      print('🔄 Reprogramando notificaciones...');
+      await NotificationService.updateOrderNotifications(orden);
+      
+      // Si cambió fecha u hora, mostrar notificación informativa
+      if (fechaCambio && orden.estado == 'en_proceso') {
+        final fechaStr = _formatDate(orden.fechaEntrega);
+        final horaStr = _formatTimeOfDay(orden.horaEntrega);
+        
+        print('🔄 Mostrando notificación informativa de cambio de fecha/hora');
+        await NotificationService.showImmediateNotification(
+          title: 'Fecha de entrega actualizada',
+          body: 'Orden #${orden.id.substring(0, 8)} - Nueva fecha: $fechaStr a las $horaStr',
+          payload: orden.id,
+        );
+      }
+      
+      // Mostrar notificación inmediata para cambios importantes de estado
+      if (estadoCambio && orden.estado == 'terminado') {
+        await NotificationService.showImmediateNotification(
+          title: 'Orden terminada',
+          body: 'Orden #${orden.id.substring(0, 8)} para ${orden.cliente.nombre} está lista para entrega',
+          payload: orden.id,
+        );
+      }
+      
+      // Mostrar notificación cuando se pone en proceso
+      if (estadoCambio && orden.estado == 'en_proceso') {
+        await NotificationService.showImmediateNotification(
+          title: 'Orden en proceso',
+          body: 'Orden #${orden.id.substring(0, 8)} para ${orden.cliente.nombre} está ahora en proceso',
+          payload: orden.id,
+        );
+      }
+    } else {
+      print('🔄 No se reprograman notificaciones - Condiciones no cumplidas');
+    }
+    
     notifyListeners();
+    print('🔄 updateOrden: Actualización completada');
+  }
+
+  // Método auxiliar para formatear fechas
+  String _formatDate(DateTime date) {
+    return DateFormat('dd/MM/yyyy').format(date);
+  }
+
+  // Método auxiliar para formatear horas
+  String _formatTimeOfDay(TimeOfDay time) {
+    final hours = time.hour.toString().padLeft(2, '0');
+    final minutes = time.minute.toString().padLeft(2, '0');
+    return '$hours:$minutes';
   }
 
   Future<void> addArchivosAOrden(OrdenTrabajo orden, List<ArchivoAdjunto> archivos) async {
@@ -1827,7 +2362,7 @@ class ArchivosAdjuntosWidget extends StatefulWidget {
   const ArchivosAdjuntosWidget({
     super.key,
     required this.orden,
-    this.isReadOnly = false,
+       this.isReadOnly = false,
   });
 
   @override
@@ -2358,6 +2893,265 @@ class AuthWrapper extends StatelessWidget {
 }
 
 
+class NotificationSettingsScreen extends StatefulWidget {
+  const NotificationSettingsScreen({super.key});
+
+  @override
+  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+}
+
+class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+  bool _testMode = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Configuración de Notificaciones'),
+        backgroundColor: const Color(0xFF98CA3F),
+        foregroundColor: Colors.white,
+      ),
+      body: Consumer<AppState>(
+        builder: (context, appState, child) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Activar/Desactivar notificaciones
+                Card(
+                  child: SwitchListTile(
+                    title: const Text('Activar Notificaciones'),
+                    subtitle: const Text('Recibir notificaciones de entregas pendientes'),
+                    value: appState.notificationsEnabled,
+                    onChanged: (bool value) {
+                      appState.setNotificationsEnabled(value);
+                      if (!value) {
+                        // Cancelar todas las notificaciones si se desactiva
+                        NotificationService.cancelAllNotifications();
+                      } else {
+                        // Reprogramar notificaciones para órdenes en proceso
+                        _reprogramarNotificaciones();
+                      }
+                    },
+                    activeColor: const Color(0xFF98CA3F),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Información sobre el funcionamiento
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cómo funcionan las notificaciones',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoItem(
+                          Icons.today,
+                          'Entregas de hoy',
+                          '15 minutos antes de la hora de entrega',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoItem(
+                          Icons.event,
+                          'Entregas futuras',
+                          '2 horas y 1 hora antes de la entrega',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildInfoItem(
+                          Icons.work,
+                          'Solo órdenes en proceso',
+                          'Solo se notifican órdenes con estado "En Proceso"',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Notificaciones pendientes
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Notificaciones Programadas',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        FutureBuilder<List<PendingNotificationRequest>>(
+                          future: NotificationService.getPendingNotifications(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            
+                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                              return const Text('No hay notificaciones programadas');
+                            }
+                            
+                            return Column(
+                              children: snapshot.data!.map((notification) {
+                                return ListTile(
+                                  leading: const Icon(Icons.notifications),
+                                  title: Text(notification.title ?? 'Sin título'),
+                                  subtitle: Text(notification.body ?? 'Sin descripción'),
+                                  trailing: Text('ID: ${notification.id}'),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Sección de pruebas
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Pruebas',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _testNotification(),
+                                icon: const Icon(Icons.notification_add),
+                                label: const Text('Notificación de Prueba'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF98CA3F),
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _reprogramarNotificaciones(),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Reprogramar Todas'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _cancelarTodas(),
+                                icon: const Icon(Icons.cancel),
+                                label: const Text('Cancelar Todas'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String title, String description) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFF98CA3F)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                description,
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _testNotification() {
+    NotificationService.showImmediateNotification(
+      title: 'Notificación de Prueba',
+      body: 'Esta es una notificación de prueba del sistema de cotización',
+      payload: 'test_notification',
+    );
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Notificación de prueba enviada')),
+    );
+  }
+
+  void _reprogramarNotificaciones() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final ordenesEnProceso = appState.ordenes.where((o) => o.estado == 'en_proceso').toList();
+    
+    for (final orden in ordenesEnProceso) {
+      NotificationService.scheduleOrderNotifications(orden);
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Reprogramadas ${ordenesEnProceso.length} notificaciones')),
+    );
+    
+    setState(() {}); // Refrescar lista de notificaciones pendientes
+  }
+
+  void _cancelarTodas() {
+    NotificationService.cancelAllNotifications();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Todas las notificaciones canceladas')),
+    );
+    
+    setState(() {}); // Refrescar lista de notificaciones pendientes
+  }
+}
+
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -2543,6 +3337,20 @@ class _MainScreenState extends State<MainScreen> {
         elevation: 1,
         shadowColor: Colors.black12,
         actions: [
+          // Botón de prueba de notificaciones
+          IconButton(
+            icon: const Icon(Icons.notifications_active_rounded, color: Color(0xFF98CA3F)),
+            onPressed: () async {
+              await NotificationService.testNotification();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('📧 Notificación de prueba enviada'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Probar notificación',
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: CircleAvatar(
@@ -2678,6 +3486,19 @@ class _MainScreenState extends State<MainScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.notifications,
+                  title: 'Notificaciones',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.help_rounded,
                   title: 'Ayuda',
                   onTap: () {
@@ -2765,36 +3586,38 @@ class _CotizarScreenState extends State<CotizarScreen> {
     super.dispose();
   }
 
-  double get _subtotalActual => _trabajoSeleccionado != null
-      ? (_ancho * _alto * _trabajoSeleccionado!.precioM2 * _cantidad) + _adicional
-      : 0.0;
+  double get _subtotalActual {
+    if (_trabajoSeleccionado == null) return 0.0;
+    return _trabajoSeleccionado!.calcularPrecio(_ancho, _alto, _cantidad, _adicional);
+  }
 
   double get _totalOrden {
-      double sum = _trabajosEnOrden.fold(0.0, (prev, item) => prev + item.precioFinal);
-      final totalPersonalizado = double.tryParse(_totalPersonalizadoController.text);
-      if (totalPersonalizado != null) return totalPersonalizado;
-      return sum;
-  }
-  
-  void _addTrabajoAOrden() {
-    if (_trabajoSeleccionado != null) {
-      setState(() {
-        _trabajosEnOrden.add(OrdenTrabajoTrabajo(
-          id: Random().nextDouble().toString(),
-          trabajo: _trabajoSeleccionado!,
-          ancho: _ancho,
-          alto: _alto,
-          cantidad: _cantidad,
-          adicional: _adicional,
-        ));
-        // Reset fields
-        _trabajoSeleccionado = null;
-        _ancho = 1.0;
-        _alto = 1.0;
-        _cantidad = 1;
-        _adicional = 0.0;
-      });
+    final totalPersonalizadoValue = double.tryParse(_totalPersonalizadoController.text);
+    if (totalPersonalizadoValue != null) {
+      return totalPersonalizadoValue;
     }
+    return _trabajosEnOrden.fold(0.0, (p, e) => p + e.precioFinal);
+  }
+
+  void _addTrabajoAOrden() {
+    if (_trabajoSeleccionado == null) return;
+    
+    setState(() {
+      _trabajosEnOrden.add(OrdenTrabajoTrabajo(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        trabajo: _trabajoSeleccionado!,
+        ancho: _ancho,
+        alto: _alto,
+        cantidad: _cantidad,
+        adicional: _adicional,
+      ));
+      // Reset fields
+      _trabajoSeleccionado = null;
+      _ancho = 1.0;
+      _alto = 1.0;
+      _cantidad = 1;
+      _adicional = 0.0;
+    });
   }
 
   void _editTrabajoEnOrden(int index) {
@@ -4264,10 +5087,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
 
       Navigator.pop(context); // Cerrar loading
 
-      // Mostrar el PDF
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdfBytes,
-        name: fileName,
+      // Compartir el PDF usando la funcionalidad nativa de Android
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: fileName,
       );
     } catch (e) {
       Navigator.pop(context); // Cerrar loading en caso de error
@@ -4452,10 +5275,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
 
       Navigator.pop(context); // Cerrar loading
 
-      // Mostrar el PDF
-      await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdfBytes,
-        name: fileName,
+      // Compartir el PDF usando la funcionalidad nativa de Android
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: fileName,
       );
     } catch (e) {
       Navigator.pop(context); // Cerrar loading en caso de error
