@@ -1,0 +1,63 @@
+# Información básica del proyecto
+name: cotizador_gigantografia
+description: "Aplicación Flutter para cotización de gigantografías"
+publish_to: 'none' # No publicar en pub.dev
+
+# Versión de la aplicación (major.minor.patch+build)
+version: 1.0.0+1
+
+# Versión mínima del SDK de Dart
+environment:
+  sdk: ^3.8.1
+
+# Dependencias principales de la aplicación
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Soporte para localización e internacionalización
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+
+  # Gestión de estado con Provider
+  provider: ^6.1.2
+  
+  # Base de datos local NoSQL
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Iconos de Material Design
+  cupertino_icons: ^1.0.8
+
+# Dependencias de desarrollo (solo para compilación y testing)
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Generador de código para Hive
+  hive_generator: ^2.0.1
+  
+  # Herramienta para ejecutar generadores de código
+  build_runner: ^2.5.4
+
+  # Reglas de linting para código limpio
+  flutter_lints: ^6.0.0
+
+# Configuración específica de Flutter
+flutter:
+  # Incluir iconos de Material Design
+  uses-material-design: true
+
+  # Recursos estáticos de la aplicación (descomentar cuando sea necesario)
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+
+  # Fuentes personalizadas (descomentar cuando sea necesario)
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: assets/fonts/CustomFont-Regular.ttf
+  #       - asset: assets/fonts/CustomFont-Bold.ttf
+  #         weight: 700
