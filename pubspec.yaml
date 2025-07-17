@@ -51,12 +51,6 @@ dependencies:
   
   # Utilidades adicionales
   url_launcher: ^6.2.2
-  
-  # Sistema de notificaciones (versión estable)
-  flutter_local_notifications: ^17.2.3
-  timezone: ^0.9.2
-  workmanager: ^0.7.0
-  shared_preferences: ^2.2.2
 
 # Dependencias de desarrollo (solo para compilación y testing)
 dev_dependencies:
