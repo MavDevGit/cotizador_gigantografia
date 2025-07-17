@@ -140,13 +140,12 @@ class ArchivoService {
 }
 
 // -------------------
-// --- RESPONSIVE UTILITIES ---
+// --- RESPONSIVE UTILITIES (SOLO MÓVIL) ---
 // -------------------
 
 class ResponsiveBreakpoints {
   static const double mobile = 600;
   static const double tablet = 1024;
-  static const double desktop = 1440;
   
   static bool isMobile(BuildContext context) {
     return MediaQuery.of(context).size.width < mobile;
@@ -157,36 +156,27 @@ class ResponsiveBreakpoints {
            MediaQuery.of(context).size.width < tablet;
   }
   
-  static bool isDesktop(BuildContext context) {
-    return MediaQuery.of(context).size.width >= tablet;
-  }
-  
   static double getContentWidth(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     if (screenWidth < mobile) return screenWidth;
     if (screenWidth < tablet) return screenWidth * 0.95;
-    if (screenWidth < desktop) return screenWidth * 0.9;
-    return 1200; // Max width for desktop
+    return screenWidth * 0.9;  // Para tablets
   }
 }
 
 class ResponsiveLayout extends StatelessWidget {
   final Widget mobile;
   final Widget? tablet;
-  final Widget? desktop;
   
   const ResponsiveLayout({
     super.key,
     required this.mobile,
     this.tablet,
-    this.desktop,
   });
   
   @override
   Widget build(BuildContext context) {
-    if (ResponsiveBreakpoints.isDesktop(context)) {
-      return desktop ?? tablet ?? mobile;
-    } else if (ResponsiveBreakpoints.isTablet(context)) {
+    if (ResponsiveBreakpoints.isTablet(context)) {
       return tablet ?? mobile;
     } else {
       return mobile;
