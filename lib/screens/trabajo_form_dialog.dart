@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -73,17 +72,20 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
         widget.onSave!(newOrderJob);
       } else {
         final appState = Provider.of<AppState>(context, listen: false);
-        final newTrabajo = Trabajo(
-            id: widget.trabajo?.id ?? Random().nextDouble().toString(),
-            nombre: _nombre,
-            precioM2: _precioM2,
-            negocioId: appState.currentUser!.negocioId,
-            creadoEn: widget.trabajo?.creadoEn ?? DateTime.now());
-
         if (widget.trabajo == null) {
+          // Crear nuevo trabajo
+          final newTrabajo = Trabajo(
+              id: Random().nextDouble().toString(),
+              nombre: _nombre,
+              precioM2: _precioM2,
+              negocioId: appState.currentUser!.negocioId,
+              creadoEn: DateTime.now());
           appState.addTrabajo(newTrabajo);
         } else {
-          appState.updateTrabajo(newTrabajo);
+          // Actualizar trabajo existente
+          widget.trabajo!.nombre = _nombre;
+          widget.trabajo!.precioM2 = _precioM2;
+          appState.updateTrabajo(widget.trabajo!);
         }
       }
       Navigator.of(context).pop();

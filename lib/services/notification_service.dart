@@ -252,40 +252,56 @@ class NotificationService {
     
     print('📅 Programando notificaciones para orden ${orden.id}');
     
-    // Crear fecha y hora de entrega precisa usando UTC
-    final DateTime deliveryDateTimeLocal = DateTime(
+    // Crear fecha y hora de entrega precisa
+    final tz.TZDateTime deliveryTZ = tz.TZDateTime(
+      tz.local,
       orden.fechaEntrega.year,
       orden.fechaEntrega.month,
       orden.fechaEntrega.day,
       orden.horaEntrega.hour,
       orden.horaEntrega.minute,
     );
-    
-    // Convertir a UTC para evitar problemas de timezone
-    final DateTime deliveryDateTimeUTC = deliveryDateTimeLocal.toUtc();
-    
-    // Convertir a timezone local para las notificaciones
-    final tz.TZDateTime deliveryTZ = tz.TZDateTime.from(deliveryDateTimeLocal, tz.local);
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     
-    print('🕐 Fecha de entrega: ${deliveryDateTimeLocal.toString()}');
-    print('🌍 Fecha de entrega UTC: ${deliveryDateTimeUTC.toString()}');
     print('📍 Fecha de entrega local TZ: ${deliveryTZ.toString()}');
     print('⏰ Hora actual: ${now.toString()}');
     
-    // Solo programar si la fecha de entrega es futura
+    // Si la fecha de entrega ya pasó, no hacer nada
     if (deliveryTZ.isBefore(now)) {
       print('⚠️ Fecha de entrega ya pasó, no se programan notificaciones');
       return;
     }
-    
+
+    // --- Generar contenido detallado para la notificación ---
+    final String horaEntrega = DateTimeUtils.formatTime(orden.horaEntrega);
+    final String trabajosResumen = orden.trabajos
+        .map((t) => '${t.trabajo.nombre} (${t.ancho}x${t.alto}m, ${t.cantidad}ud)')
+        .join(', ');
+
+    // Calcular minutos restantes
+    final Duration timeRemaining = deliveryTZ.difference(now);
+    final int minutesRemaining = timeRemaining.inMinutes;
+
+    // Lógica para órdenes urgentes (menos de 30 minutos)
+    if (minutesRemaining <= 30) {
+      print('🔥 Orden Urgente! Menos de 30 minutos restantes.');
+      await _showNotification(
+        id: '${orden.id}_urgent'.hashCode,
+        title: '🔥 Entrega para ${orden.cliente.nombre} en $minutesRemaining min!',
+        body: 'Hora: $horaEntrega. Trabajos: $trabajosResumen',
+        channelId: 'overdue_alerts', // Usar canal de alta prioridad
+        payload: 'order_${orden.id}',
+      );
+      return; // No programar más notificaciones
+    }
+
     // Notificación 24 horas antes
     final tz.TZDateTime reminder24h = deliveryTZ.subtract(const Duration(hours: 24));
     if (reminder24h.isAfter(now)) {
       await _scheduleNotification(
         id: '${orden.id}_24h'.hashCode,
-        title: '📅 Recordatorio de Entrega - 24 horas',
-        body: 'Orden de ${orden.cliente.nombre} se entrega mañana',
+        title: '📅 Entrega para ${orden.cliente.nombre} mañana',
+        body: 'Hora: $horaEntrega. Trabajos: $trabajosResumen',
         scheduledDate: reminder24h,
         channelId: 'order_reminders',
         payload: 'order_${orden.id}',
@@ -297,8 +313,8 @@ class NotificationService {
     if (reminder2h.isAfter(now)) {
       await _scheduleNotification(
         id: '${orden.id}_2h'.hashCode,
-        title: '⏰ Recordatorio de Entrega - 2 horas',
-        body: 'Orden de ${orden.cliente.nombre} se entrega en 2 horas',
+        title: '⏰ Entrega para ${orden.cliente.nombre} en 2 horas',
+        body: 'Hora: $horaEntrega. Trabajos: $trabajosResumen',
         scheduledDate: reminder2h,
         channelId: 'order_reminders',
         payload: 'order_${orden.id}',
@@ -310,8 +326,8 @@ class NotificationService {
     if (reminder30min.isAfter(now)) {
       await _scheduleNotification(
         id: '${orden.id}_30min'.hashCode,
-        title: '🚨 Recordatorio de Entrega - 30 minutos',
-        body: 'Orden de ${orden.cliente.nombre} se entrega en 30 minutos',
+        title: '🚨 Entrega para ${orden.cliente.nombre} en 30 min',
+        body: 'Hora: $horaEntrega. Trabajos: $trabajosResumen',
         scheduledDate: reminder30min,
         channelId: 'order_reminders',
         payload: 'order_${orden.id}',

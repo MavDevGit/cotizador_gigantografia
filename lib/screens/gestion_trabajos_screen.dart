@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
@@ -80,7 +79,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
       onFabPressed: () => _showTrabajoDialog(context),
       buildTile: (trabajo) => ListTile(
         title: Text(trabajo.nombre),
-        subtitle: Text('Precio m²: \$${trabajo.precioM2.toStringAsFixed(2)}'),
+        subtitle: Text('Precio m²: Bs ${trabajo.precioM2.toStringAsFixed(2)}'),
         trailing: showArchived
             ? IconButton(
                 icon: Icon(Icons.unarchive),

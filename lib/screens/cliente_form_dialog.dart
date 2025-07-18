@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -32,18 +31,22 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final appState = Provider.of<AppState>(context, listen: false);
-      final newCliente = Cliente(
-        id: widget.cliente?.id ?? Random().nextDouble().toString(),
-        nombre: _nombre,
-        contacto: _contacto,
-        negocioId: appState.currentUser!.negocioId,
-        creadoEn: widget.cliente?.creadoEn ?? DateTime.now(),
-      );
 
       if (widget.cliente == null) {
+        // Crear nuevo cliente
+        final newCliente = Cliente(
+          id: Random().nextDouble().toString(),
+          nombre: _nombre,
+          contacto: _contacto,
+          negocioId: appState.currentUser!.negocioId,
+          creadoEn: DateTime.now(),
+        );
         appState.addCliente(newCliente);
       } else {
-        appState.updateCliente(newCliente);
+        // Actualizar cliente existente
+        widget.cliente!.nombre = _nombre;
+        widget.cliente!.contacto = _contacto;
+        appState.updateCliente(widget.cliente!);
       }
       Navigator.of(context).pop();
     }

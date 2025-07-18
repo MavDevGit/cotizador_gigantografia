@@ -78,10 +78,14 @@ class AppState extends ChangeNotifier {
       _clientesBox.values.where((c) => c.eliminadoEn == null).toList();
   List<Cliente> get clientesArchivados =>
       _clientesBox.values.where((c) => c.eliminadoEn != null).toList();
-  List<Trabajo> get trabajos =>
-      _trabajosBox.values.where((t) => t.eliminadoEn == null).toList();
-  List<Trabajo> get trabajosArchivados =>
-      _trabajosBox.values.where((t) => t.eliminadoEn != null).toList();
+  List<Trabajo> get trabajos => _trabajosBox.values
+      .where((t) => t.eliminadoEn == null)
+      .toList()
+    ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+  List<Trabajo> get trabajosArchivados => _trabajosBox.values
+      .where((t) => t.eliminadoEn != null)
+      .toList()
+    ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
   List<OrdenTrabajo> get ordenes => _ordenesBox.values.toList()
     ..sort((a, b) => b.creadoEn.compareTo(a.creadoEn));
   List<Usuario> get usuarios =>
