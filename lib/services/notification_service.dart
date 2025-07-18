@@ -246,12 +246,19 @@ class NotificationService {
   /// Programa notificaciones para una orden
   static Future<void> scheduleOrderNotifications(OrdenTrabajo orden) async {
     await initialize();
-    
+
     // Cancelar notificaciones previas de esta orden
     await cancelOrderNotifications(orden.id);
-    
+
+    // Verificar el estado de la orden
+    if (orden.estado != 'en_proceso' && orden.estado != 'terminado') {
+      print(
+          '🚫 La orden ${orden.id} no está "en proceso" o "terminado". No se programarán notificaciones.');
+      return;
+    }
+
     print('📅 Programando notificaciones para orden ${orden.id}');
-    
+
     // Crear fecha y hora de entrega precisa
     final tz.TZDateTime deliveryTZ = tz.TZDateTime(
       tz.local,
@@ -413,6 +420,9 @@ class NotificationService {
       channelId: 'order_status',
       payload: 'order_${orden.id}',
     );
+
+    // Volver a programar las notificaciones según el nuevo estado
+    await scheduleOrderNotifications(orden);
   }
 
   /// Muestra una notificación inmediata
