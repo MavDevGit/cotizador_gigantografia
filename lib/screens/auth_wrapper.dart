@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,7 +11,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     if (appState.currentUser != null) {
-      return const MainScreen();
+      return const HomeScreen();
     } else {
       return const LoginScreen();
     }

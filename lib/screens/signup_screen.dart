@@ -1,38 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:icons_plus/icons_plus.dart';
 
-import '../app_state/app_state.dart';
-import '../utils/utils.dart';
 import 'screens.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _SignUpScreenState createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'admin');
-  final _passwordController = TextEditingController(text: 'admin');
-  bool _isLoading = false;
+class _SignUpScreenState extends State<SignUpScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscureText = true;
-
-  Future<void> _login() async {
-    setState(() => _isLoading = true);
-    final success = await Provider.of<AppState>(context, listen: false)
-        .login(_emailController.text, _passwordController.text);
-
-    if (!mounted) return;
-
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario o contraseña incorrectos.')),
-      );
-    }
-    setState(() => _isLoading = false);
-  }
+  bool _agreedToTerms = false;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Header
                   Text(
-                    'Iniciar Sesión',
+                    'Crear Cuenta',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -61,13 +44,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "¡Hola! Bienvenido de nuevo, te hemos extrañado",
+                    'Completa tu información a continuación o regístrate\ncon tu cuenta social.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: const Color(0xFF6B7280),
                         ),
                   ),
                   const SizedBox(height: 48),
+
+                  // Name Field
+                  Text('Nombre', style: TextStyle(color: Colors.grey[700])),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      hintText: 'John Doe',
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
                   // Email Field
                   Text('Correo', style: TextStyle(color: Colors.grey[700])),
@@ -103,9 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureText
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
+                          _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                           color: Colors.grey[500],
                         ),
                         onPressed: () {
@@ -116,42 +114,60 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // Forgot Password
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password functionality
-                      },
-                      child: Text(
-                        '¿Olvidaste tu contraseña?',
-                        style: TextStyle(color: primaryColor),
+                  // Terms and Conditions
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _agreedToTerms,
+                        onChanged: (value) {
+                          setState(() {
+                            _agreedToTerms = value ?? false;
+                          });
+                        },
+                        activeColor: primaryColor,
                       ),
-                    ),
+                      Expanded(
+                        child: RichText(
+                          text: TextSpan(
+                            text: 'Acepto los ',
+                            style: TextStyle(color: Colors.grey[600]),
+                            children: [
+                              TextSpan(
+                                text: 'Términos y Condiciones',
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                // TODO: Add recognizer to open terms
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
-                  // Sign In Button
-                  _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _login,
-                          child: const Text(
-                            'Iniciar Sesión',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                  // Sign Up Button
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      // TODO: Implement sign up functionality
+                    },
+                    child: const Text(
+                      'Registrarse',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                   const SizedBox(height: 32),
 
                   // Social Login
@@ -161,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: Text(
-                          'O inicia sesión con',
+                          'O regístrate con',
                           style: TextStyle(color: Colors.grey[600]),
                         ),
                       ),
@@ -181,24 +197,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Sign Up
+                  // Sign In
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "¿No tienes una cuenta?",
+                        "¿Ya tienes una cuenta?",
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const SignUpScreen()),
-                          );
+                          Navigator.pop(context);
                         },
                         child: Text(
-                          'Regístrate',
+                          'Iniciar Sesión',
                           style: TextStyle(
                             color: primaryColor,
                             fontWeight: FontWeight.bold,
