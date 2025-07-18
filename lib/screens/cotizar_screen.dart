@@ -1054,44 +1054,6 @@ class _CotizarScreenState extends State<CotizarScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Widget de archivos adjuntos para nueva orden
-            if (_trabajosEnOrden.isNotEmpty) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Archivos Adjuntos',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.attach_file_rounded),
-                        label: const Text("Adjuntar Archivos"),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Los archivos se pueden adjuntar después de guardar la orden. "
-                                "Podrá acceder a esta funcionalidad desde la pantalla de detalle de la orden.",
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),

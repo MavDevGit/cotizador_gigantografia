@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -111,7 +110,49 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
             if (ordenes.isEmpty)
               _buildEmptyState()
             else
-              ...ordenes.map((orden) => _buildOrderCard(orden)),
+              ...ordenes.map((orden) => Dismissible(
+                    key: Key(orden.id),
+                    direction: DismissDirection.endToStart,
+                    confirmDismiss: (direction) async {
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Confirmar Eliminación'),
+                          content: const Text(
+                              '¿Estás seguro de que deseas eliminar esta orden de trabajo?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text('Eliminar'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    onDismissed: (direction) {
+                      Provider.of<AppState>(context, listen: false)
+                          .deleteOrden(orden.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Orden #${orden.id.substring(0, 6)} eliminada')),
+                      );
+                    },
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    child: _buildOrderCard(orden),
+                  )),
           ],
         ),
       ),

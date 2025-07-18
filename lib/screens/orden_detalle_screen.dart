@@ -219,6 +219,39 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
               ],
             ),
             IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: "Eliminar Orden",
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Confirmar Eliminación'),
+                    content: const Text(
+                        '¿Estás seguro de que deseas eliminar esta orden de trabajo? Esta acción no se puede deshacer.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Eliminar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await Provider.of<AppState>(context, listen: false)
+                      .deleteOrden(_ordenEditable.id);
+                  Navigator.of(context).pop(true); // Indicar que se eliminó
+                }
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.save),
               onPressed: _guardarCambios,
               tooltip: "Guardar Cambios",

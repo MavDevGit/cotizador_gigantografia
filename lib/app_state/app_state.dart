@@ -142,6 +142,14 @@ class AppState extends ChangeNotifier {
     print('🔄 updateOrden: Actualización completada');
   }
 
+  Future<void> deleteOrden(String ordenId) async {
+    // Cancelar notificaciones antes de eliminar
+    await NotificationService.cancelOrderNotifications(ordenId);
+    
+    await _ordenesBox.delete(ordenId);
+    notifyListeners();
+  }
+
   // Método auxiliar para formatear fechas
   String _formatDate(DateTime date) {
     return DateFormat('dd/MM/yyyy').format(date);
