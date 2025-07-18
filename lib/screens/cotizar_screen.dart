@@ -804,9 +804,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                                       ),
                                 ),
                                 Text(
-                                  DateFormat('EEEE, d \'de\' MMMM \'de\' yyyy',
-                                          'es_ES')
-                                      .format(_fechaEntrega),
+                                  DateTimeUtils.formatDate(_fechaEntrega),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
@@ -859,7 +857,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                                       ),
                                 ),
                                 Text(
-                                  _horaEntrega.format(context),
+                                  DateTimeUtils.formatTime(_horaEntrega),
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
@@ -933,9 +931,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                                         ),
                                   ),
                                   Text(
-                                    DateFormat('EEEE, d \'de\' MMMM \'de\' yyyy',
-                                            'es_ES')
-                                        .format(_fechaEntrega),
+                                    DateTimeUtils.formatDate(_fechaEntrega),
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium
@@ -988,7 +984,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                                         ),
                                   ),
                                   Text(
-                                    _horaEntrega.format(context),
+                                    DateTimeUtils.formatTime(_horaEntrega),
                                     style: Theme.of(context)
                                         .textTheme
                                         .titleMedium

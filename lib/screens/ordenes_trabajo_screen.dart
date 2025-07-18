@@ -402,7 +402,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                             size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          'Entrega: ${DateFormat('d \'de\' MMMM \'de\' yyyy', 'es_ES').format(orden.fechaEntrega)}',
+                          'Entrega: ${DateTimeUtils.formatDate(orden.fechaEntrega)}',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -413,7 +413,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                             size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
-                          orden.horaEntrega.format(context),
+                          DateTimeUtils.formatTime(orden.horaEntrega),
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,

@@ -446,10 +446,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                           ),
                                     ),
                                     Text(
-                                      DateFormat(
-                                              'EEEE, d \'de\' MMMM \'de\' yyyy',
-                                              'es_ES')
-                                          .format(_ordenEditable.fechaEntrega),
+                                      DateTimeUtils.formatDate(_ordenEditable.fechaEntrega),
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium
@@ -506,8 +503,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                           ),
                                     ),
                                     Text(
-                                      _ordenEditable.horaEntrega
-                                          .format(context),
+                                      DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleMedium
@@ -648,8 +644,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                             ),
                                       ),
                                       Text(
-                                        _ordenEditable.horaEntrega
-                                            .format(context),
+                                        DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium
@@ -716,7 +711,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           subtitle: Text('Por: ${evento.usuarioNombre}'),
           // Formatear fecha y hora en español
           trailing: Text(
-              DateFormat('d/M/y H:mm', 'es_ES').format(evento.timestamp.toLocal())),
+              DateTimeUtils.formatDateTime(evento.timestamp.toLocal())),
         );
       },
     );

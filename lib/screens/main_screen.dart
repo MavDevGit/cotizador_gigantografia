@@ -177,6 +177,17 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 const Divider(height: 32),
                 _buildDrawerItem(
+                  icon: Icons.notifications_rounded,
+                  title: 'Notificaciones',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const NotificationSettingsScreen()));
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.settings_rounded,
                   title: 'Configuración',
                   onTap: () {

@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../models/models.dart';
+import '../utils/utils.dart';
 
 // Extensión para TimeOfDay que permite formatear sin BuildContext
 extension TimeOfDayExtension on TimeOfDay {
@@ -657,8 +658,6 @@ class PDFGenerator {
 
   // Función auxiliar para formatear TimeOfDay
   static String _formatTimeOfDay(TimeOfDay time) {
-    final hours = time.hour.toString().padLeft(2, '0');
-    final minutes = time.minute.toString().padLeft(2, '0');
-    return '$hours:$minutes';
+    return DateTimeUtils.formatTime(time);
   }
 }

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../models/models.dart';
 import '../services/services.dart';
+import '../utils/utils.dart';
 
 class AppState extends ChangeNotifier {
   Usuario? _currentUser;
@@ -92,6 +93,10 @@ class AppState extends ChangeNotifier {
   // --- CRUD methods now write to Hive boxes ---
   Future<void> addOrden(OrdenTrabajo orden) async {
     await _ordenesBox.put(orden.id, orden);
+    
+    // Programar notificaciones para la nueva orden
+    await NotificationService.scheduleOrderNotifications(orden);
+    
     notifyListeners();
   }
 
@@ -101,17 +106,31 @@ class AppState extends ChangeNotifier {
 
     // Obtener la orden actual para comparar cambios
     final ordenActual = _ordenesBox.get(orden.id);
+    
+    // Verificar si cambió el estado
+    bool estadoCambio = ordenActual?.estado != orden.estado;
 
     orden.historial.add(OrdenHistorial(
       id: Random().nextDouble().toString(),
       cambio: cambio,
       usuarioId: _currentUser!.id,
       usuarioNombre: _currentUser!.nombre,
-      timestamp: DateTime.now(),
+      timestamp: DateTimeUtils.nowUtc(),
     ));
 
     // Ensure the order is saved to Hive
     await _ordenesBox.put(orden.id, orden);
+
+    // Reprogramar notificaciones si cambió fecha/hora de entrega
+    if (ordenActual?.fechaEntrega != orden.fechaEntrega || 
+        ordenActual?.horaEntrega != orden.horaEntrega) {
+      await NotificationService.scheduleOrderNotifications(orden);
+    }
+    
+    // Notificar cambio de estado
+    if (estadoCambio) {
+      await NotificationService.notifyOrderStatusChange(orden, orden.estado);
+    }
 
     notifyListeners();
     print('🔄 updateOrden: Actualización completada');
@@ -154,7 +173,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteTrabajo(Trabajo trabajo) async {
-    trabajo.eliminadoEn = DateTime.now();
+    trabajo.eliminadoEn = DateTimeUtils.nowUtc();
     await trabajo.save();
     notifyListeners();
   }
@@ -176,7 +195,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteCliente(Cliente cliente) async {
-    cliente.eliminadoEn = DateTime.now();
+    cliente.eliminadoEn = DateTimeUtils.nowUtc();
     await cliente.save();
     notifyListeners();
   }
@@ -199,7 +218,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteUsuario(Usuario usuario) async {
     if (usuario.id == _currentUser?.id) return;
-    usuario.eliminadoEn = DateTime.now();
+    usuario.eliminadoEn = DateTimeUtils.nowUtc();
     await usuario.save();
     notifyListeners();
   }

@@ -3,13 +3,22 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 import 'app_state/app_state.dart';
 import 'models/models.dart';
 import 'screens/screens.dart';
+import 'services/services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar timezone
+  tz.initializeTimeZones();
+  
+  // Configurar timezone local del dispositivo
+  await _initializeTimezone();
 
   await initializeDateFormatting('es_ES', null);
 
@@ -29,6 +38,9 @@ Future<void> main() async {
   await Hive.openBox<Usuario>('usuarios');
   await Hive.openBox<OrdenTrabajo>('ordenes');
 
+  // Inicializar sistema de notificaciones
+  await NotificationService.initialize();
+
   final appState = AppState();
   await appState.init();
 
@@ -38,6 +50,104 @@ Future<void> main() async {
       child: const CotizadorApp(),
     ),
   );
+}
+
+/// Inicializa el timezone del dispositivo automáticamente
+Future<void> _initializeTimezone() async {
+  try {
+    // Obtener la zona horaria del dispositivo
+    final String deviceTimezone = DateTime.now().timeZoneName;
+    print('🌍 Timezone del dispositivo: $deviceTimezone');
+    
+    // Intentar configurar la zona horaria detectada
+    try {
+      // Mapear algunos timezones comunes
+      final Map<String, String> timezoneMap = {
+        'BOT': 'America/La_Paz',
+        'ART': 'America/Argentina/Buenos_Aires',
+        'PET': 'America/Lima',
+        'COT': 'America/Bogota',
+        'ECT': 'America/Guayaquil',
+        'VET': 'America/Caracas',
+        'BRT': 'America/Sao_Paulo',
+        'CLT': 'America/Santiago',
+        'UYT': 'America/Montevideo',
+        'PYT': 'America/Asuncion',
+        'GFT': 'America/Cayenne',
+        'SRT': 'America/Paramaribo',
+        'GMT': 'UTC',
+        'UTC': 'UTC',
+      };
+      
+      // Primero intentar usar el timezone mapeado
+      if (timezoneMap.containsKey(deviceTimezone)) {
+        final location = tz.getLocation(timezoneMap[deviceTimezone]!);
+        tz.setLocalLocation(location);
+        print('✅ Timezone configurado: ${timezoneMap[deviceTimezone]}');
+        return;
+      }
+      
+      // Si no está mapeado, intentar detectar automáticamente
+      // Usar el offset del dispositivo para encontrar la zona horaria apropiada
+      final now = DateTime.now();
+      final offset = now.timeZoneOffset;
+      
+      // Mapear offsets comunes a zonas horarias
+      final String timezoneId = _getTimezoneFromOffset(offset);
+      final location = tz.getLocation(timezoneId);
+      tz.setLocalLocation(location);
+      print('✅ Timezone configurado automáticamente: $timezoneId (offset: ${offset.inHours}h)');
+      
+    } catch (e) {
+      print('⚠️ Error configurando timezone específico: $e');
+      
+      // Fallback: usar UTC como zona horaria segura
+      tz.setLocalLocation(tz.getLocation('UTC'));
+      print('✅ Timezone fallback configurado: UTC');
+    }
+    
+  } catch (e) {
+    print('❌ Error inicializando timezone: $e');
+    
+    // Fallback final: UTC
+    tz.setLocalLocation(tz.getLocation('UTC'));
+    print('✅ Timezone fallback final configurado: UTC');
+  }
+}
+
+/// Obtiene la zona horaria basada en el offset del dispositivo
+String _getTimezoneFromOffset(Duration offset) {
+  final hours = offset.inHours;
+  
+  // Mapear offsets comunes a zonas horarias (considerando horario estándar)
+  switch (hours) {
+    case -12: return 'Pacific/Kwajalein';
+    case -11: return 'Pacific/Midway';
+    case -10: return 'Pacific/Honolulu';
+    case -9: return 'America/Anchorage';
+    case -8: return 'America/Los_Angeles';
+    case -7: return 'America/Denver';
+    case -6: return 'America/Chicago';
+    case -5: return 'America/New_York';
+    case -4: return 'America/La_Paz'; // Bolivia, Paraguay, Venezuela
+    case -3: return 'America/Argentina/Buenos_Aires'; // Argentina, Brasil, Uruguay
+    case -2: return 'America/Noronha';
+    case -1: return 'Atlantic/Azores';
+    case 0: return 'UTC';
+    case 1: return 'Europe/Paris';
+    case 2: return 'Europe/Helsinki';
+    case 3: return 'Europe/Moscow';
+    case 4: return 'Asia/Dubai';
+    case 5: return 'Asia/Karachi';
+    case 6: return 'Asia/Dhaka';
+    case 7: return 'Asia/Jakarta';
+    case 8: return 'Asia/Shanghai';
+    case 9: return 'Asia/Tokyo';
+    case 10: return 'Australia/Sydney';
+    case 11: return 'Pacific/Noumea';
+    case 12: return 'Pacific/Auckland';
+    default: return 'UTC'; // Fallback para cualquier otro offset
+  }
 }
 
 class CotizadorApp extends StatelessWidget {

@@ -11,3 +11,4 @@ export 'cliente_detalle_screen.dart';
 export 'trabajo_form_dialog.dart';
 export 'cliente_form_dialog.dart';
 export 'usuario_form_dialog.dart';
+export 'notification_settings_screen.dart';
