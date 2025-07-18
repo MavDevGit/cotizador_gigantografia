@@ -77,11 +77,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   /// Callback para manejar cambios en el AppState
   void _onAppStateChanged() {
     // Refrescar notificaciones cuando hay cambios en las órdenes
-    _loadPendingNotifications();
-    
-    // Mostrar mensaje informativo si estamos en la pestaña de notificaciones programadas
-    if (_selectedTabIndex == 1) {
-      _showMessage('📅 Notificaciones actualizadas automáticamente', isError: false);
+    if (mounted) {
+      _loadPendingNotifications();
+      
+      // Mostrar mensaje informativo si estamos en la pestaña de notificaciones programadas
+      if (_selectedTabIndex == 1) {
+        _showMessage('📅 Notificaciones actualizadas automáticamente', isError: false);
+      }
     }
   }
 

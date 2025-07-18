@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -80,20 +79,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
-      // Update the original order with the edited values
-      // NOTE: NO actualizamos archivos porque se manejan directamente por el widget ArchivosAdjuntosWidget
-      widget.orden.cliente = _ordenEditable.cliente;
-      widget.orden.trabajos = _ordenEditable.trabajos;
-      widget.orden.adelanto = _ordenEditable.adelanto;
-      widget.orden.totalPersonalizado = _ordenEditable.totalPersonalizado;
-      widget.orden.notas = _ordenEditable.notas;
-      widget.orden.estado = _ordenEditable.estado;
-      widget.orden.fechaEntrega = _ordenEditable.fechaEntrega;
-      widget.orden.horaEntrega = _ordenEditable.horaEntrega;
-      // widget.orden.archivos = _ordenEditable.archivos; // REMOVIDO: No sobreescribir archivos
-
+      // NO modificar widget.orden directamente.
+      // Enviar la copia editable al AppState para que se encargue de la lógica.
       Provider.of<AppState>(context, listen: false)
-          .updateOrden(widget.orden, "Orden actualizada.");
+          .updateOrden(_ordenEditable, "Orden actualizada.");
       Navigator.pop(context, true); // Return true to indicate changes were made
     }
   }

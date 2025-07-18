@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -122,8 +121,11 @@ class AppState extends ChangeNotifier {
     await _ordenesBox.put(orden.id, orden);
 
     // Reprogramar notificaciones si cambió fecha/hora de entrega
-    if (ordenActual?.fechaEntrega != orden.fechaEntrega || 
-        ordenActual?.horaEntrega != orden.horaEntrega) {
+    final bool fechaCambio = ordenActual?.fechaEntrega != orden.fechaEntrega;
+    final bool horaCambio = ordenActual?.horaEntrega.hour != orden.horaEntrega.hour ||
+                            ordenActual?.horaEntrega.minute != orden.horaEntrega.minute;
+
+    if (fechaCambio || horaCambio) {
       await NotificationService.scheduleOrderNotifications(orden);
     }
     
