@@ -17,6 +17,9 @@ class AppState extends ChangeNotifier {
   late Box<Trabajo> _trabajosBox;
   late Box<OrdenTrabajo> _ordenesBox;
   late Box<Usuario> _usuariosBox;
+  
+  // Lista para mantener el orden personalizado de trabajos
+  List<String> _ordenPersonalizadoTrabajosIds = [];
 
   AppState() {
     // Initialization is now async and happens in main()
@@ -74,14 +77,47 @@ class AppState extends ChangeNotifier {
   }
 
   // --- Getters now read from Hive boxes ---
-  List<Cliente> get clientes =>
-      _clientesBox.values.where((c) => c.eliminadoEn == null).toList();
-  List<Cliente> get clientesArchivados =>
-      _clientesBox.values.where((c) => c.eliminadoEn != null).toList();
-  List<Trabajo> get trabajos => _trabajosBox.values
-      .where((t) => t.eliminadoEn == null)
+  List<Cliente> get clientes => _clientesBox.values
+      .where((c) => c.eliminadoEn == null)
       .toList()
     ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+  List<Cliente> get clientesArchivados => _clientesBox.values
+      .where((c) => c.eliminadoEn != null)
+      .toList()
+    ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+  List<Trabajo> get trabajos {
+    final trabajosActivos = _trabajosBox.values
+        .where((t) => t.eliminadoEn == null)
+        .toList();
+    
+    // Si hay orden personalizado, usarlo
+    if (_ordenPersonalizadoTrabajosIds.isNotEmpty) {
+      final trabajosOrdenados = <Trabajo>[];
+      final trabajosRestantes = List<Trabajo>.from(trabajosActivos);
+      
+      // Agregar trabajos en el orden personalizado
+      for (String id in _ordenPersonalizadoTrabajosIds) {
+        final trabajo = trabajosRestantes.firstWhere(
+          (t) => t.id == id,
+          orElse: () => null as Trabajo,
+        );
+        if (trabajo != null) {
+          trabajosOrdenados.add(trabajo);
+          trabajosRestantes.remove(trabajo);
+        }
+      }
+      
+      // Agregar trabajos restantes (nuevos) al final en orden alfabético
+      trabajosRestantes.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+      trabajosOrdenados.addAll(trabajosRestantes);
+      
+      return trabajosOrdenados;
+    }
+    
+    // Si no hay orden personalizado, usar orden alfabético
+    return trabajosActivos
+      ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+  }
   List<Trabajo> get trabajosArchivados => _trabajosBox.values
       .where((t) => t.eliminadoEn != null)
       .toList()
@@ -197,6 +233,19 @@ class AppState extends ChangeNotifier {
     await trabajo.save();
     notifyListeners();
   }
+
+  // Métodos para manejar el orden personalizado de trabajos
+  void setOrdenPersonalizadoTrabajos(List<Trabajo> trabajosOrdenados) {
+    _ordenPersonalizadoTrabajosIds = trabajosOrdenados.map((t) => t.id).toList();
+    notifyListeners();
+  }
+  
+  void resetOrdenPersonalizadoTrabajos() {
+    _ordenPersonalizadoTrabajosIds.clear();
+    notifyListeners();
+  }
+  
+  bool get tieneOrdenPersonalizadoTrabajos => _ordenPersonalizadoTrabajosIds.isNotEmpty;
 
   Future<void> addCliente(Cliente cliente) async {
     await _clientesBox.put(cliente.id, cliente);
