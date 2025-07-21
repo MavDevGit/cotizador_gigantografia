@@ -35,8 +35,8 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
 
   // For jobs within an order
   Trabajo? _selectedTrabajo;
-  late double _ancho;
-  late double _alto;
+  double? _ancho;
+  double? _alto;
   late int _cantidad;
   late double _adicional;
 
@@ -47,8 +47,14 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
     super.initState();
     if (isOrderJob) {
       _selectedTrabajo = widget.trabajoEnOrden?.trabajo;
-      _ancho = widget.trabajoEnOrden?.ancho ?? 1.0;
-      _alto = widget.trabajoEnOrden?.alto ?? 1.0;
+      // Si es para editar, usar valores existentes; si es para añadir, dejar nulo para placeholder
+      if (widget.trabajoEnOrden != null) {
+        _ancho = widget.trabajoEnOrden!.ancho;
+        _alto = widget.trabajoEnOrden!.alto;
+      } else {
+        _ancho = null;
+        _alto = null;
+      }
       _cantidad = widget.trabajoEnOrden?.cantidad ?? 1;
       _adicional = widget.trabajoEnOrden?.adicional ?? 0.0;
     } else {
@@ -65,8 +71,8 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
         final newOrderJob = OrdenTrabajoTrabajo(
           id: widget.trabajoEnOrden?.id ?? Random().nextDouble().toString(),
           trabajo: _selectedTrabajo!,
-          ancho: _ancho,
-          alto: _alto,
+          ancho: _ancho ?? 1.0,
+          alto: _alto ?? 1.0,
           cantidad: _cantidad,
           adicional: _adicional,
         );
@@ -182,8 +188,11 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           ),
           FormSpacing.verticalMedium(),
           TextFormField(
-            initialValue: _ancho.toString(),
-            decoration: const InputDecoration(labelText: 'Ancho (m)'),
+            initialValue: _ancho != null ? _ancho.toString() : '',
+            decoration: const InputDecoration(
+              labelText: 'Ancho (m)',
+              hintText: 'Ej: 1.0',
+            ),
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
@@ -194,8 +203,11 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           ),
           FormSpacing.verticalMedium(),
           TextFormField(
-            initialValue: _alto.toString(),
-            decoration: const InputDecoration(labelText: 'Alto (m)'),
+            initialValue: _alto != null ? _alto.toString() : '',
+            decoration: const InputDecoration(
+              labelText: 'Alto (m)',
+              hintText: 'Ej: 1.0',
+            ),
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))

@@ -106,92 +106,112 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Refrescar notificaciones antes de salir
         await _loadPendingNotifications();
         return true;
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Configuración de Notificaciones'),
-          backgroundColor: Colors.white,
-          elevation: 1,
-          shadowColor: Colors.black12,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveUserPreferences,
-              tooltip: 'Guardar configuración',
-            ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(icon: Icon(Icons.settings), text: 'Configuración'),
-              Tab(icon: Icon(Icons.schedule), text: 'Programadas'),
-            ],
-            labelColor: const Color(0xFF98CA3F),
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: const Color(0xFF98CA3F),
-            onTap: (index) {
-              setState(() => _selectedTabIndex = index);
-              // Refrescar notificaciones cuando se cambia a la pestaña de programadas
-              if (index == 1) {
-                _loadPendingNotifications();
-              }
-            },
-          ),
-        ),
-        backgroundColor: const Color(0xFFFAFAFA),
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildConfigurationTab(),
-                  _buildPendingNotificationsTab(),
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = constraints.maxWidth > 600;
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Configuración de Notificaciones'),
+              backgroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: Colors.black26,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.save_rounded, color: Color(0xFF98CA3F)),
+                  onPressed: _saveUserPreferences,
+                  tooltip: 'Guardar configuración',
+                ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(icon: Icon(Icons.settings), text: 'Configuración'),
+                      Tab(icon: Icon(Icons.schedule), text: 'Programadas'),
+                    ],
+                    labelColor: const Color(0xFF98CA3F),
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: const Color(0xFF98CA3F),
+                    indicatorWeight: 3,
+                    labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: isTablet ? 18 : 15),
+                    onTap: (index) {
+                      setState(() => _selectedTabIndex = index);
+                      if (index == 1) {
+                        _loadPendingNotifications();
+                      }
+                    },
+                  ),
+                ),
               ),
+            ),
+            backgroundColor: const Color(0xFFF5F7FB),
+            body: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildConfigurationTab(isTablet),
+                      _buildPendingNotificationsTab(isTablet),
+                    ],
+                  ),
+          );
+        },
       ),
     );
   }
 
   // ========================= TAB 1: CONFIGURACIÓN =========================
   
-  Widget _buildConfigurationTab() {
+  Widget _buildConfigurationTab(bool isTablet) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 48 : 12, vertical: isTablet ? 32 : 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSystemStatusCard(),
-          FormSpacing.verticalMedium(),
-          _buildNotificationSettingsCard(),
+          _buildSystemStatusCard(isTablet),
+          SizedBox(height: isTablet ? 32 : 24),
+          _buildNotificationSettingsCard(isTablet),
         ],
       ),
     );
   }
 
-  Widget _buildSystemStatusCard() {
+  Widget _buildSystemStatusCard(bool isTablet) {
     return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTablet ? 24 : 16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 32 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.blue),
-                SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: EdgeInsets.all(isTablet ? 10 : 6),
+                  child: Icon(Icons.info_outline, color: Colors.blue, size: isTablet ? 28 : 22),
+                ),
+                SizedBox(width: isTablet ? 18 : 10),
                 Text(
                   'Estado del Sistema',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontSize: isTablet ? 23 : 19,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isTablet ? 24 : 16),
             _buildStatusItem(
               icon: Icons.notifications,
               title: 'Servicio de Notificaciones',
@@ -257,41 +277,52 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  Widget _buildNotificationSettingsCard() {
+  Widget _buildNotificationSettingsCard(bool isTablet) {
     return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTablet ? 24 : 16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 32 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.tune, color: Color(0xFF98CA3F)),
-                SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF98CA3F).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: EdgeInsets.all(isTablet ? 10 : 6),
+                  child: Icon(Icons.tune, color: Color(0xFF98CA3F), size: isTablet ? 28 : 22),
+                ),
+                SizedBox(width: isTablet ? 18 : 10),
                 Text(
                   'Configuración General',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontSize: isTablet ? 23 : 19,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isTablet ? 24 : 18),
             _buildSwitchTile(
               title: 'Notificaciones Habilitadas',
               subtitle: 'Activa/desactiva todas las notificaciones',
               value: _notificationsEnabled,
               onChanged: (value) => setState(() => _notificationsEnabled = value),
               icon: Icons.notifications,
+              isTablet: isTablet,
             ),
-            const Divider(height: 24),
+            Divider(height: isTablet ? 36 : 28, thickness: 1.2),
             _buildSwitchTile(
               title: 'Recordatorios de Entrega',
               subtitle: 'Notificaciones antes de la fecha de entrega',
               value: _orderReminderEnabled,
               onChanged: _notificationsEnabled ? (value) => setState(() => _orderReminderEnabled = value) : null,
               icon: Icons.schedule,
+              isTablet: isTablet,
             ),
             _buildSwitchTile(
               title: 'Cambios de Estado',
@@ -299,6 +330,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               value: _statusChangeEnabled,
               onChanged: _notificationsEnabled ? (value) => setState(() => _statusChangeEnabled = value) : null,
               icon: Icons.update,
+              isTablet: isTablet,
             ),
           ],
         ),
@@ -312,13 +344,21 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     required bool value,
     required ValueChanged<bool>? onChanged,
     required IconData icon,
+    bool isTablet = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: isTablet ? 14 : 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: onChanged != null ? Colors.grey[600] : Colors.grey[400]),
-          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: onChanged != null ? Colors.grey[200] : Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: EdgeInsets.all(isTablet ? 10 : 6),
+            child: Icon(icon, size: isTablet ? 28 : 22, color: onChanged != null ? Color(0xFF98CA3F) : Colors.grey[400]),
+          ),
+          SizedBox(width: isTablet ? 22 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,15 +366,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontSize: isTablet ? 18 : 15,
+                    fontWeight: FontWeight.w600,
                     color: onChanged != null ? Colors.black87 : Colors.grey[400],
                   ),
                 ),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isTablet ? 14 : 12,
                     color: onChanged != null ? Colors.grey[600] : Colors.grey[400],
                   ),
                 ),
@@ -353,36 +393,45 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   // ========================= TAB 2: NOTIFICACIONES PROGRAMADAS =========================
   
-  Widget _buildPendingNotificationsTab() {
+  Widget _buildPendingNotificationsTab(bool isTablet) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: isTablet ? 48 : 12, vertical: isTablet ? 32 : 18),
       child: Column(
         children: [
-          _buildPendingNotificationsCard(),
+          _buildPendingNotificationsCard(isTablet),
         ],
       ),
     );
   }
 
-  Widget _buildPendingNotificationsCard() {
+  Widget _buildPendingNotificationsCard(bool isTablet) {
     return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isTablet ? 24 : 16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isTablet ? 32 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.schedule, color: Colors.blue),
-                    SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.all(isTablet ? 10 : 6),
+                      child: Icon(Icons.schedule, color: Colors.blue, size: isTablet ? 28 : 22),
+                    ),
+                    SizedBox(width: isTablet ? 18 : 10),
                     Text(
                       'Notificaciones Programadas',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: isTablet ? 23 : 19,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
@@ -390,49 +439,50 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: isTablet ? 16 : 10, vertical: isTablet ? 10 : 6),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withOpacity(0.13),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${_pendingNotifications.length}',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: isTablet ? 16 : 13,
                           color: Colors.blue,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: isTablet ? 14 : 8),
                     IconButton(
                       onPressed: _loadPendingNotifications,
-                      icon: const Icon(Icons.refresh),
+                      icon: Icon(Icons.refresh, color: Colors.blue, size: isTablet ? 28 : 22),
                       tooltip: 'Actualizar',
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            const Text(
+            SizedBox(height: isTablet ? 22 : 14),
+            Text(
               'Las notificaciones se actualizan automáticamente cuando cambias fechas de entrega.',
               style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
+                color: Colors.grey[600],
+                fontSize: isTablet ? 15 : 13,
                 fontStyle: FontStyle.italic,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isTablet ? 28 : 18),
             if (_pendingNotifications.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.all(isTablet ? 36 : 24),
                   child: Text(
                     'No hay notificaciones programadas',
                     style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
+                      color: Colors.grey[500],
+                      fontSize: isTablet ? 19 : 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
@@ -444,7 +494,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 itemCount: _pendingNotifications.length,
                 itemBuilder: (context, index) {
                   final notification = _pendingNotifications[index];
-                  return _buildNotificationItem(notification);
+                  return _buildNotificationItem(notification, isTablet);
                 },
               ),
           ],
@@ -453,13 +503,20 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  Widget _buildNotificationItem(PendingNotificationRequest notification) {
+  Widget _buildNotificationItem(PendingNotificationRequest notification, [bool isTablet = false]) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: isTablet ? 20 : 12),
+      padding: EdgeInsets.all(isTablet ? 28 : 16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(isTablet ? 18 : 12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: isTablet ? 12 : 6,
+            offset: Offset(0, 2),
+          ),
+        ],
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Column(
@@ -468,50 +525,51 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: EdgeInsets.symmetric(horizontal: isTablet ? 14 : 8, vertical: isTablet ? 6 : 3),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.blue.withOpacity(0.13),
+                  borderRadius: BorderRadius.circular(isTablet ? 10 : 6),
                 ),
                 child: Text(
                   'ID: ${notification.id}',
-                  style: const TextStyle(
-                    fontSize: 10,
+                  style: TextStyle(
+                    fontSize: isTablet ? 14 : 11,
                     color: Colors.blue,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               Icon(
                 Icons.notifications_outlined,
-                size: 16,
-                color: Colors.grey[600],
+                size: isTablet ? 26 : 18,
+                color: Color(0xFF98CA3F),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isTablet ? 16 : 10),
           Text(
             notification.title ?? 'Sin título',
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: isTablet ? 19 : 15,
+              color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isTablet ? 10 : 6),
           Text(
             notification.body ?? 'Sin contenido',
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+              fontSize: isTablet ? 16 : 13,
+              color: Colors.grey[700],
             ),
           ),
           if (notification.payload != null) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: isTablet ? 10 : 6),
             Text(
               'Payload: ${notification.payload}',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: isTablet ? 13 : 11,
                 color: Colors.grey[500],
                 fontStyle: FontStyle.italic,
               ),
