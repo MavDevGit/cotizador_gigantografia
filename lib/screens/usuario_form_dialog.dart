@@ -76,6 +76,7 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
               initialValue: _email,
               decoration: const InputDecoration(labelText: 'Email (login)'),
               keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
               validator: (v) => v!.isEmpty ? 'Email inválido' : null,
               onSaved: (v) => _email = v!,
             ),

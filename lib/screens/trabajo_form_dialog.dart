@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
@@ -139,6 +140,9 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           initialValue: _precioM2.toString(),
           decoration: const InputDecoration(labelText: 'Precio por m²'),
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+          ],
           validator: (v) =>
               (double.tryParse(v!) == null) ? 'Número inválido' : null,
           onSaved: (v) => _precioM2 = double.parse(v!),
@@ -181,6 +185,9 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             initialValue: _ancho.toString(),
             decoration: const InputDecoration(labelText: 'Ancho (m)'),
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+            ],
             validator: (v) =>
                 (double.tryParse(v!) == null) ? 'Número inválido' : null,
             onSaved: (v) => _ancho = double.parse(v!),
@@ -190,6 +197,9 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             initialValue: _alto.toString(),
             decoration: const InputDecoration(labelText: 'Alto (m)'),
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+            ],
             validator: (v) =>
                 (double.tryParse(v!) == null) ? 'Número inválido' : null,
             onSaved: (v) => _alto = double.parse(v!),
@@ -199,6 +209,9 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             initialValue: _cantidad.toString(),
             decoration: const InputDecoration(labelText: 'Cantidad'),
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly
+            ],
             validator: (v) =>
                 (int.tryParse(v!) == null) ? 'Número inválido' : null,
             onSaved: (v) => _cantidad = int.parse(v!),
@@ -206,8 +219,11 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           FormSpacing.verticalMedium(),
           TextFormField(
             initialValue: _adicional.toString(),
-            decoration: const InputDecoration(labelText: 'Adicional (\$)'),
+            decoration: const InputDecoration(labelText: 'Adicional (Bs)'),
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+            ],
             validator: (v) =>
                 (double.tryParse(v!) == null) ? 'Número inválido' : null,
             onSaved: (v) => _adicional = double.parse(v!),

@@ -84,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
                   ),
                   const SizedBox(height: 24),
 
@@ -103,10 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureText
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: Colors.grey[500],
+                          _obscureText ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.grey,
                         ),
                         onPressed: () {
                           setState(() {
@@ -115,6 +114,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                     ),
+                    keyboardType: TextInputType.visiblePassword,
+                    autofillHints: const [AutofillHints.password],
                   ),
                   const SizedBox(height: 16),
 

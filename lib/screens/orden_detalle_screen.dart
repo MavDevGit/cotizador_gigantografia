@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
@@ -354,7 +355,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 return ListTile(
                   title: Text(trabajo.trabajo.nombre),
                   subtitle: Text(
-                      '${trabajo.ancho}x${trabajo.alto}m - ${trabajo.cantidad} uds.'),
+                      '${trabajo.ancho}x${trabajo.alto}m - ${trabajo.cantidad} uni.'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -751,8 +752,11 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             TextFormField(
               controller: _totalPersonalizadoController,
               decoration:
-                  const InputDecoration(labelText: 'Total Personalizado (\$)'),
+                  const InputDecoration(labelText: 'Total Personalizado (Bs)'),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+              ],
               onChanged: (value) {
                 setState(() {
                   _ordenEditable.totalPersonalizado = double.tryParse(value);
@@ -772,8 +776,11 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             FormSpacing.verticalMedium(),
             TextFormField(
               controller: _adelantoController,
-              decoration: const InputDecoration(labelText: 'Adelanto (\$)'),
+              decoration: const InputDecoration(labelText: 'Adelanto (Bs)'),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+              ],
               onChanged: (value) {
                 setState(() {
                   _ordenEditable.adelanto = double.tryParse(value) ?? 0.0;

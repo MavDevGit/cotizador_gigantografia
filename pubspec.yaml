@@ -58,6 +58,7 @@ dependencies:
   workmanager: ^0.7.0
   font_awesome_flutter: ^10.8.0
   icons_plus: ^5.0.0
+  dropdown_search: ^6.0.2
 
 # Dependencias de desarrollo (solo para compilación y testing)
 dev_dependencies:

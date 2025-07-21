@@ -1,9 +1,9 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
@@ -22,12 +22,12 @@ class _CotizarScreenState extends State<CotizarScreen> {
   List<OrdenTrabajoTrabajo> _trabajosEnOrden = [];
   Trabajo? _trabajoSeleccionado;
   Cliente? _clienteSeleccionado;
-  double _ancho = 1.0;
-  double _alto = 1.0;
-  int _cantidad = 1;
-  double _adicional = 0.0;
 
-  // Controllers are the single source of truth for TextFields
+  // Controllers for text fields
+  late TextEditingController _anchoController;
+  late TextEditingController _altoController;
+  late TextEditingController _cantidadController;
+  late TextEditingController _adicionalController;
   late TextEditingController _totalPersonalizadoController;
   late TextEditingController _adelantoController;
   late TextEditingController _notasController;
@@ -38,13 +38,30 @@ class _CotizarScreenState extends State<CotizarScreen> {
   @override
   void initState() {
     super.initState();
+    _anchoController = TextEditingController();
+    _altoController = TextEditingController();
+    _cantidadController = TextEditingController(text: '1');
+    _adicionalController = TextEditingController();
     _totalPersonalizadoController = TextEditingController();
     _adelantoController = TextEditingController();
     _notasController = TextEditingController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (mounted && appState.trabajos.isNotEmpty) {
+        setState(() {
+          _trabajoSeleccionado = appState.trabajos.first;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _anchoController.dispose();
+    _altoController.dispose();
+    _cantidadController.dispose();
+    _adicionalController.dispose();
     _totalPersonalizadoController.dispose();
     _adelantoController.dispose();
     _notasController.dispose();
@@ -53,8 +70,12 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
   double get _subtotalActual {
     if (_trabajoSeleccionado == null) return 0.0;
+    final ancho = double.tryParse(_anchoController.text) ?? 0.0;
+    final alto = double.tryParse(_altoController.text) ?? 0.0;
+    final cantidad = int.tryParse(_cantidadController.text) ?? 0;
+    final adicional = double.tryParse(_adicionalController.text) ?? 0.0;
     return _trabajoSeleccionado!
-        .calcularPrecio(_ancho, _alto, _cantidad, _adicional);
+        .calcularPrecio(ancho, alto, cantidad, adicional);
   }
 
   double get _totalOrden {
@@ -69,21 +90,26 @@ class _CotizarScreenState extends State<CotizarScreen> {
   void _addTrabajoAOrden() {
     if (_trabajoSeleccionado == null) return;
 
+    final ancho = double.tryParse(_anchoController.text) ?? 1.0;
+    final alto = double.tryParse(_altoController.text) ?? 1.0;
+    final cantidad = int.tryParse(_cantidadController.text) ?? 1;
+    final adicional = double.tryParse(_adicionalController.text) ?? 0.0;
+
     setState(() {
       _trabajosEnOrden.add(OrdenTrabajoTrabajo(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         trabajo: _trabajoSeleccionado!,
-        ancho: _ancho,
-        alto: _alto,
-        cantidad: _cantidad,
-        adicional: _adicional,
+        ancho: ancho,
+        alto: alto,
+        cantidad: cantidad,
+        adicional: adicional,
       ));
       // Reset fields
       _trabajoSeleccionado = null;
-      _ancho = 1.0;
-      _alto = 1.0;
-      _cantidad = 1;
-      _adicional = 0.0;
+      _anchoController.clear();
+      _altoController.clear();
+      _cantidadController.text = '1';
+      _adicionalController.clear();
     });
   }
 
@@ -203,7 +229,9 @@ class _CotizarScreenState extends State<CotizarScreen> {
       style: ElevatedButton.styleFrom(
         minimumSize: const Size(double.infinity, 56),
       ),
-      onPressed: _guardarOrden,
+      onPressed: _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty
+          ? _guardarOrden
+          : null,
     );
   }
 
@@ -222,26 +250,117 @@ class _CotizarScreenState extends State<CotizarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Dropdown para tipo de trabajo
-            DropdownButtonFormField<Trabajo>(
-              value: _trabajoSeleccionado,
-              decoration: const InputDecoration(
-                labelText: 'Tipo de Trabajo',
-                prefixIcon: Icon(Icons.work_rounded),
-              ),
-              items: trabajosUnicos.asMap().entries.map((entry) {
-                int index = entry.key;
-                Trabajo trabajo = entry.value;
-                return DropdownMenuItem<Trabajo>(
-                  key: Key('trabajo_${trabajo.id}_$index'), // Key único con índice
-                  value: trabajo,
-                  child: Text(trabajo.nombre),
-                );
-              }).toList(),
-              onChanged: (newValue) {
+            DropdownSearch<Trabajo>(
+              items: (filter, infiniteScrollProps) => trabajosUnicos,
+              selectedItem: _trabajoSeleccionado,
+              itemAsString: (Trabajo trabajo) => trabajo.nombre,
+              onChanged: (Trabajo? newValue) {
                 setState(() {
                   _trabajoSeleccionado = newValue;
                 });
               },
+              decoratorProps: const DropDownDecoratorProps(
+                decoration: InputDecoration(
+                  labelText: 'Tipo de Trabajo',
+                  prefixIcon: Icon(Icons.work_rounded),
+                  hintText: 'Buscar tipo de trabajo...',
+                ),
+              ),
+              popupProps: PopupProps.menu(
+                showSearchBox: true,
+                searchFieldProps: const TextFieldProps(
+                  decoration: InputDecoration(
+                    hintText: 'Buscar tipo de trabajo...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                itemBuilder: (context, Trabajo trabajo, isSelected, isHighlighted) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).primaryColor.withOpacity(0.1)
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.work_rounded,
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                trabajo.nombre,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? Theme.of(context).primaryColor
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          'Bs ${trabajo.precioM2.toStringAsFixed(2)}/m²',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isSelected
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                emptyBuilder: (context, searchEntry) {
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.work_off_rounded,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No se encontraron trabajos',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                        if (searchEntry.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'para "$searchEntry"',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+              compareFn: (Trabajo trabajo1, Trabajo trabajo2) =>
+                  trabajo1.id == trabajo2.id,
             ),
             FormSpacing.verticalLarge(),
 
@@ -250,19 +369,25 @@ class _CotizarScreenState extends State<CotizarScreen> {
               mobile: Column(
                 children: [
                   _buildInputField(
+                    controller: _anchoController,
                     label: 'Ancho (m)',
                     icon: Icons.straighten_rounded,
-                    initialValue: _ancho.toString(),
-                    onChanged: (v) =>
-                        setState(() => _ancho = double.tryParse(v) ?? 1.0),
+                    hintText: '1.0',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
                   ),
                   FormSpacing.verticalMedium(),
                   _buildInputField(
+                    controller: _altoController,
                     label: 'Alto (m)',
                     icon: Icons.height_rounded,
-                    initialValue: _alto.toString(),
-                    onChanged: (v) =>
-                        setState(() => _alto = double.tryParse(v) ?? 1.0),
+                    hintText: '1.0',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
                   ),
                 ],
               ),
@@ -270,21 +395,27 @@ class _CotizarScreenState extends State<CotizarScreen> {
                 children: [
                   Expanded(
                     child: _buildInputField(
+                      controller: _anchoController,
                       label: 'Ancho (m)',
                       icon: Icons.straighten_rounded,
-                      initialValue: _ancho.toString(),
-                      onChanged: (v) =>
-                          setState(() => _ancho = double.tryParse(v) ?? 1.0),
+                      hintText: '1.0',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
                     ),
                   ),
                   FormSpacing.horizontalMedium(),
                   Expanded(
                     child: _buildInputField(
+                      controller: _altoController,
                       label: 'Alto (m)',
                       icon: Icons.height_rounded,
-                      initialValue: _alto.toString(),
-                      onChanged: (v) =>
-                          setState(() => _alto = double.tryParse(v) ?? 1.0),
+                      hintText: '1.0',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
                     ),
                   ),
                 ],
@@ -297,19 +428,23 @@ class _CotizarScreenState extends State<CotizarScreen> {
               mobile: Column(
                 children: [
                   _buildInputField(
+                    controller: _cantidadController,
                     label: 'Cantidad',
                     icon: Icons.numbers_rounded,
-                    initialValue: _cantidad.toString(),
-                    onChanged: (v) =>
-                        setState(() => _cantidad = int.tryParse(v) ?? 1),
+                    hintText: '1',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   ),
                   FormSpacing.verticalMedium(),
                   _buildInputField(
+                    controller: _adicionalController,
                     label: 'Adicional (Bs)',
                     icon: Icons.attach_money_rounded,
-                    initialValue: _adicional.toString(),
-                    onChanged: (v) =>
-                        setState(() => _adicional = double.tryParse(v) ?? 0.0),
+                    hintText: '0.0',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
                   ),
                 ],
               ),
@@ -317,21 +452,25 @@ class _CotizarScreenState extends State<CotizarScreen> {
                 children: [
                   Expanded(
                     child: _buildInputField(
+                      controller: _cantidadController,
                       label: 'Cantidad',
                       icon: Icons.numbers_rounded,
-                      initialValue: _cantidad.toString(),
-                      onChanged: (v) =>
-                          setState(() => _cantidad = int.tryParse(v) ?? 1),
+                      hintText: '1',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                   ),
                   FormSpacing.horizontalMedium(),
                   Expanded(
                     child: _buildInputField(
+                      controller: _adicionalController,
                       label: 'Adicional (Bs)',
                       icon: Icons.attach_money_rounded,
-                      initialValue: _adicional.toString(),
-                      onChanged: (v) => setState(
-                          () => _adicional = double.tryParse(v) ?? 0.0),
+                      hintText: '0.0',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
                     ),
                   ),
                 ],
@@ -377,8 +516,11 @@ class _CotizarScreenState extends State<CotizarScreen> {
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Añadir a la Orden'),
-                onPressed:
-                    _trabajoSeleccionado != null ? _addTrabajoAOrden : null,
+                onPressed: _trabajoSeleccionado != null &&
+                        _anchoController.text.isNotEmpty &&
+                        _altoController.text.isNotEmpty
+                    ? _addTrabajoAOrden
+                    : null,
               ),
             ),
           ],
@@ -388,19 +530,23 @@ class _CotizarScreenState extends State<CotizarScreen> {
   }
 
   Widget _buildInputField({
+    required TextEditingController controller,
     required String label,
     required IconData icon,
-    required String initialValue,
+    required String hintText,
     required ValueChanged<String> onChanged,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
-      initialValue: initialValue,
+      controller: controller,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
+        hintText: hintText,
       ),
       keyboardType: TextInputType.number,
       onChanged: onChanged,
+      inputFormatters: inputFormatters,
     );
   }
 
@@ -598,32 +744,107 @@ class _CotizarScreenState extends State<CotizarScreen> {
                 border: Border.all(color: Colors.grey.withOpacity(0.3)),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: DropdownButtonFormField<Cliente>(
-                value: _clienteSeleccionado,
-                decoration: const InputDecoration(
-                  labelText: 'Cliente',
-                  prefixIcon: Icon(Icons.person_rounded),
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
-                items: clientesUnicos.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  Cliente cliente = entry.value;
-                  return DropdownMenuItem<Cliente>(
-                    key: Key(
-                        'cliente_${cliente.id}_$index'), // Key único con índice
-                    value: cliente,
-                    child: Text(cliente.nombre),
-                  );
-                }).toList(),
-                onChanged: (newValue) {
+              child: DropdownSearch<Cliente>(
+                items: (filter, infiniteScrollProps) => clientesUnicos,
+                selectedItem: _clienteSeleccionado,
+                itemAsString: (Cliente cliente) => cliente.nombre,
+                onChanged: (Cliente? newValue) {
                   setState(() {
                     _clienteSeleccionado = newValue;
                   });
                 },
                 validator: (value) =>
                     value == null ? 'Seleccione un cliente' : null,
+                decoratorProps: const DropDownDecoratorProps(
+                  decoration: InputDecoration(
+                    labelText: 'Cliente',
+                    prefixIcon: Icon(Icons.person_rounded),
+                    border: InputBorder.none,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    hintText: 'Buscar cliente...',
+                  ),
+                ),
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: const TextFieldProps(
+                    decoration: InputDecoration(
+                      hintText: 'Buscar cliente...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Theme.of(context).primaryColor.withOpacity(0.1)
+                            : null,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.person_rounded,
+                            color: isSelected
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              cliente.nombre,
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? Theme.of(context).primaryColor
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  emptyBuilder: (context, searchEntry) {
+                    return Container(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.search_off_rounded,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No se encontraron clientes',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (searchEntry.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'para "$searchEntry"',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                compareFn: (Cliente cliente1, Cliente cliente2) =>
+                    cliente1.id == cliente2.id,
               ),
             ),
             FormSpacing.verticalLarge(),
@@ -649,6 +870,9 @@ class _CotizarScreenState extends State<CotizarScreen> {
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
                     ),
                   ),
                   FormSpacing.verticalMedium(),
@@ -669,6 +893,9 @@ class _CotizarScreenState extends State<CotizarScreen> {
                       ),
                       keyboardType: TextInputType.number,
                       onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
                     ),
                   ),
                 ],
@@ -693,6 +920,10 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (v) => setState(() {}),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d*'))
+                        ],
                       ),
                     ),
                   ),
@@ -715,6 +946,10 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (v) => setState(() {}),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d*'))
+                        ],
                       ),
                     ),
                   ),

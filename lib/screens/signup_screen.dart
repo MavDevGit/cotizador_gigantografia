@@ -66,6 +66,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderSide: BorderSide.none,
                       ),
                     ),
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 24),
 
@@ -84,6 +86,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
                   ),
                   const SizedBox(height: 24),
 
@@ -103,8 +106,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: Colors.grey[500],
+                          _obscureText ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.grey,
                         ),
                         onPressed: () {
                           setState(() {
@@ -113,6 +116,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         },
                       ),
                     ),
+                    keyboardType: TextInputType.visiblePassword,
+                    autofillHints: const [AutofillHints.password],
                   ),
                   const SizedBox(height: 24),
 
