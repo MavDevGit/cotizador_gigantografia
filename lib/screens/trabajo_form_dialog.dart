@@ -101,14 +101,22 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      title: Text(isOrderJob
-          ? (widget.trabajoEnOrden == null
-              ? 'Añadir Trabajo a Orden'
-              : 'Editar Trabajo de Orden')
-          : (widget.trabajo == null
-              ? 'Nuevo Tipo de Trabajo'
-              : 'Editar Tipo de Trabajo')),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        isOrderJob
+            ? (widget.trabajoEnOrden == null
+                ? 'Añadir Trabajo a Orden'
+                : 'Editar Trabajo de Orden')
+            : (widget.trabajo == null
+                ? 'Nuevo Tipo de Trabajo'
+                : 'Editar Tipo de Trabajo'),
+        style: theme.textTheme.headlineSmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       content: Form(
         key: _formKey,
         child: isOrderJob ? _buildOrderJobForm() : _buildJobTypeForm(),
@@ -116,7 +124,10 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
       actions: [
         if (!isOrderJob && widget.trabajo != null)
           TextButton(
-            child: Text('Archivar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            child: const Text('Archivar'),
             onPressed: () {
               Provider.of<AppState>(context, listen: false)
                   .deleteTrabajo(widget.trabajo!);
@@ -124,14 +135,31 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             },
           ),
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar')),
-        ElevatedButton(onPressed: _submit, child: const Text('Guardar')),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          onPressed: _submit,
+          child: const Text('Guardar'),
+        ),
       ],
     );
   }
 
   Widget _buildJobTypeForm() {
+    final theme = Theme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -139,7 +167,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           initialValue: _nombre,
           decoration: InputDecoration(
             labelText: 'Nombre del Trabajo',
-            labelStyle: Theme.of(context).textTheme.bodyMedium,
+            labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surface,
           ),
           validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
           onSaved: (v) => _nombre = v!,
@@ -149,7 +191,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           initialValue: _precioM2.toString(),
           decoration: InputDecoration(
             labelText: 'Precio por m²',
-            labelStyle: Theme.of(context).textTheme.bodyMedium,
+            labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surface,
           ),
           keyboardType: TextInputType.number,
           inputFormatters: [
@@ -164,6 +220,7 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
   }
 
   Widget _buildOrderJobForm() {
+    final theme = Theme.of(context);
     // Filtrar trabajos únicos manualmente
     final uniqueTrabajos = <String, Trabajo>{};
     if (widget.availableTrabajos != null) {
@@ -191,7 +248,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             onChanged: (val) => setState(() => _selectedTrabajo = val),
             decoration: InputDecoration(
               labelText: 'Tipo de Trabajo',
-              labelStyle: Theme.of(context).textTheme.bodyMedium,
+              labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
             ),
             validator: (v) => v == null ? 'Seleccione un trabajo' : null,
           ),
@@ -201,7 +272,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             decoration: InputDecoration(
               labelText: 'Ancho (m)',
               hintText: 'Ej: 1.0',
-              labelStyle: Theme.of(context).textTheme.bodyMedium,
+              labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
@@ -217,7 +302,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             decoration: InputDecoration(
               labelText: 'Alto (m)',
               hintText: 'Ej: 1.0',
-              labelStyle: Theme.of(context).textTheme.bodyMedium,
+              labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
@@ -232,7 +331,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             initialValue: _cantidad.toString(),
             decoration: InputDecoration(
               labelText: 'Cantidad',
-              labelStyle: Theme.of(context).textTheme.bodyMedium,
+              labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
@@ -247,7 +360,21 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
             initialValue: _adicional.toString(),
             decoration: InputDecoration(
               labelText: 'Adicional (Bs)',
-              labelStyle: Theme.of(context).textTheme.bodyMedium,
+              labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [

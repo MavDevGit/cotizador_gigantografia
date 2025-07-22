@@ -12,68 +12,167 @@ class ClienteDetalleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final appState = Provider.of<AppState>(context);
     final ordenesCliente =
         appState.ordenes.where((o) => o.cliente.id == cliente.id).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(cliente.nombre)),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text("Órdenes de Trabajo Asociadas",
-                style: Theme.of(context).textTheme.titleLarge),
+      appBar: AppBar(
+        title: Text(
+          cliente.nombre,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
           ),
-          Expanded(
-            child: ordenesCliente.isEmpty
-                ? Center(child: Text("Este cliente no tiene órdenes de trabajo."))
-                : ListView.builder(
-                    itemCount: ordenesCliente.length,
-                    itemBuilder: (context, index) {
-                      final orden = ordenesCliente[index];
-                      return Card(
-                        margin:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: ListTile(
-                          title: Text("Orden #${orden.id.substring(0, 4)}"),
-                          subtitle: Text(
-                              "Total: \$${orden.total.toStringAsFixed(2)}"),
-                          trailing: Chip(
-                            label: Text(orden.estado,
-                                style: TextStyle(color: Colors.white)),
-                            backgroundColor: _getStatusColor(orden.estado),
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        OrdenDetalleScreen(orden: orden)));
-                          },
-                        ),
-                      );
-                    },
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
+        iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
+      ),
+      body: Container(
+        color: theme.colorScheme.surface,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
-          )
-        ],
+                ],
+              ),
+              child: Text(
+                "Órdenes de Trabajo Asociadas",
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ordenesCliente.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.assignment_outlined,
+                            size: 64,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Este cliente no tiene órdenes de trabajo.",
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: ordenesCliente.length,
+                      itemBuilder: (context, index) {
+                        final orden = ordenesCliente[index];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            title: Text(
+                              "Orden #${orden.id.substring(0, 4)}",
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                "Total: \$${orden.total.toStringAsFixed(2)}",
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(orden.estado, theme),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                _getStatusLabel(orden.estado),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) =>
+                                          OrdenDetalleScreen(orden: orden)));
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            )
+          ],
+        ),
       ),
     );
   }
 
-  Color _getStatusColor(String estado) {
+  Color _getStatusColor(String estado, ThemeData theme) {
     switch (estado) {
       case 'pendiente':
-        return Colors.orange;
+        return theme.colorScheme.tertiary;
       case 'en_proceso':
-        return Colors.blue;
+        return theme.colorScheme.primary;
       case 'terminado':
-        return Colors.green;
+        return theme.colorScheme.secondary;
       case 'entregado':
-        return Colors.grey;
+        return theme.colorScheme.outline;
       default:
-        return Colors.black;
+        return theme.colorScheme.onSurfaceVariant;
+    }
+  }
+
+  String _getStatusLabel(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return 'Pendiente';
+      case 'en_proceso':
+        return 'En Proceso';
+      case 'terminado':
+        return 'Terminado';
+      case 'entregado':
+        return 'Entregado';
+      default:
+        return estado;
     }
   }
 }

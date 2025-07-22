@@ -54,8 +54,16 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AlertDialog(
-      title: Text(widget.cliente == null ? 'Nuevo Cliente' : 'Editar Cliente'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        widget.cliente == null ? 'Nuevo Cliente' : 'Editar Cliente',
+        style: theme.textTheme.headlineSmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       content: Form(
         key: _formKey,
         child: Column(
@@ -63,16 +71,48 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
           children: [
             TextFormField(
               initialValue: _nombre,
-              decoration:
-                  const InputDecoration(labelText: 'Nombre del Cliente'),
+              decoration: InputDecoration(
+                labelText: 'Nombre del Cliente',
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
+              ),
               validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
               onSaved: (v) => _nombre = v!,
             ),
             FormSpacing.verticalMedium(),
             TextFormField(
               initialValue: _contacto,
-              decoration: const InputDecoration(
-                  labelText: 'Contacto (Teléfono, Email, etc.)'),
+              decoration: InputDecoration(
+                labelText: 'Contacto (Teléfono, Email, etc.)',
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
+              ),
               onSaved: (v) => _contacto = v!,
             ),
           ],
@@ -81,7 +121,10 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
       actions: [
         if (widget.cliente != null)
           TextButton(
-            child: Text('Archivar', style: TextStyle(color: Colors.redAccent)),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            child: Text('Archivar'),
             onPressed: () {
               Provider.of<AppState>(context, listen: false)
                   .deleteCliente(widget.cliente!);
@@ -89,9 +132,25 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
             },
           ),
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar')),
-        ElevatedButton(onPressed: _submit, child: const Text('Guardar')),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          onPressed: _submit,
+          child: const Text('Guardar'),
+        ),
       ],
     );
   }
