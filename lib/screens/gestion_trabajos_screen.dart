@@ -5,6 +5,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
+import '../utils/utils.dart';
 import 'screens.dart';
 
 abstract class GestionScreen<T extends HiveObject> extends StatefulWidget {
@@ -137,12 +138,44 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                 selectedItem: _trabajoSeleccionado,
                 itemAsString: (Trabajo trabajo) => trabajo.nombre,
                 onChanged: _onTrabajoSelected,
-                decoratorProps: const DropDownDecoratorProps(
+                decoratorProps: DropDownDecoratorProps(
                   decoration: InputDecoration(
                     labelText: 'Buscar Trabajo',
-                    prefixIcon: Icon(Icons.search_rounded),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     hintText: 'Buscar trabajo por nombre...',
-                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    labelStyle: UIUtils.getSubtitleStyle(context),
+                    hintStyle: UIUtils.getSubtitleStyle(context),
+                    floatingLabelStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 popupProps: PopupProps.menu(
@@ -155,22 +188,21 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                     ),
                   ),
                   itemBuilder: (context, Trabajo trabajo, isSelected, isHighlighted) {
+                    final theme = Theme.of(context);
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Theme.of(context).primaryColor.withOpacity(0.1)
+                            ? theme.colorScheme.primaryContainer.withOpacity(0.1)
                             : null,
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.work_rounded,
-                            color: isSelected
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey,
-                            size: 20,
+                          UIUtils.buildThemedIcon(
+                            icon: Icons.work_rounded,
+                            context: context,
+                            isSelected: isSelected,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -179,12 +211,13 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                               children: [
                                 Text(
                                   trabajo.nombre,
-                                  style: TextStyle(
+                                  style: UIUtils.getTitleStyle(
+                                    context,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: isSelected
-                                        ? Theme.of(context).primaryColor
+                                        ? theme.colorScheme.primary
                                         : null,
                                   ),
                                 ),
@@ -193,11 +226,10 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                           ),
                           Text(
                             'Bs ${trabajo.precioM2.toStringAsFixed(2)}/m²',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: isSelected
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey[600],
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -206,6 +238,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                     );
                   },
                   emptyBuilder: (context, searchEntry) {
+                    final theme = Theme.of(context);
                     return Container(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -213,24 +246,20 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                           Icon(
                             Icons.work_off_rounded,
                             size: 48,
-                            color: Colors.grey[400],
+                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                           ),
-                          const SizedBox(height: 8),
+                          FormSpacing.verticalSmall(),
                           Text(
                             'No se encontraron trabajos',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
+                            style: UIUtils.getTitleStyle(context).copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (searchEntry.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                            FormSpacing.verticalSmall(),
                             Text(
                               'para "$searchEntry"',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
+                              style: UIUtils.getSubtitleStyle(context),
                             ),
                           ],
                         ],
@@ -250,8 +279,8 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
               padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
                 color: appState.tieneOrdenPersonalizadoTrabajos 
-                    ? Theme.of(context).primaryColor.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                    : UIUtils.getWarningColor(context).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -262,8 +291,8 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                         : Icons.drag_handle_rounded,
                     size: 20,
                     color: appState.tieneOrdenPersonalizadoTrabajos 
-                        ? Theme.of(context).primaryColor
-                        : Colors.orange[700],
+                        ? Theme.of(context).colorScheme.primary
+                        : UIUtils.getWarningColor(context),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -271,11 +300,11 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                       appState.tieneOrdenPersonalizadoTrabajos
                           ? 'Orden personalizado activo - Arrastra para modificar'
                           : 'Mantén presionado y arrastra para reordenar',
-                      style: TextStyle(
+                      style: UIUtils.getSubtitleStyle(context).copyWith(
                         fontSize: 12,
                         color: appState.tieneOrdenPersonalizadoTrabajos 
-                            ? Theme.of(context).primaryColor
-                            : Colors.orange[700],
+                            ? Theme.of(context).colorScheme.primary
+                            : UIUtils.getWarningColor(context),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -290,19 +319,65 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
           Expanded(
             child: trabajosToShow.isEmpty
                 ? Center(
-                    child: Text(showArchived
-                        ? 'No hay trabajos archivados.'
-                        : 'No hay trabajos.'))
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          showArchived ? Icons.archive_outlined : Icons.work_off_rounded,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        ),
+                        FormSpacing.verticalLarge(),
+                        Text(
+                          showArchived ? 'No hay trabajos archivados' : 'No hay trabajos',
+                          style: UIUtils.getTitleStyle(context).copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (!showArchived) ...[
+                          FormSpacing.verticalSmall(),
+                          Text(
+                            'Presiona el botón + para agregar un trabajo',
+                            style: UIUtils.getSubtitleStyle(context),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
                 : showArchived 
                     ? ListView.builder(
                         itemCount: trabajosToShow.length,
-                        itemBuilder: (context, index) => ListTile(
-                          title: Text(trabajosToShow[index].nombre),
-                          subtitle: Text('Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}'),
-                          trailing: IconButton(
-                            icon: Icon(Icons.unarchive),
-                            onPressed: () => appState.restoreTrabajo(trabajosToShow[index]),
-                            tooltip: "Restaurar",
+                        itemBuilder: (context, index) => Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.work_rounded,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            title: Text(
+                              trabajosToShow[index].nombre,
+                              style: UIUtils.getTitleStyle(context),
+                            ),
+                            subtitle: Text(
+                              'Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}',
+                              style: UIUtils.getSubtitleStyle(context),
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                Icons.unarchive,
+                                color: UIUtils.getSuccessColor(context),
+                              ),
+                              onPressed: () => appState.restoreTrabajo(trabajosToShow[index]),
+                              tooltip: "Restaurar",
+                            ),
                           ),
                         ),
                       )
@@ -313,15 +388,26 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                           key: ValueKey(trabajosToShow[index].id),
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             leading: Icon(
                               Icons.drag_handle_rounded,
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
-                            title: Text(trabajosToShow[index].nombre),
-                            subtitle: Text('Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}'),
+                            title: Text(
+                              trabajosToShow[index].nombre,
+                              style: UIUtils.getTitleStyle(context),
+                            ),
+                            subtitle: Text(
+                              'Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}',
+                              style: UIUtils.getSubtitleStyle(context),
+                            ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.edit),
+                              icon: Icon(
+                                Icons.edit,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                               onPressed: () => _showTrabajoDialog(context, trabajo: trabajosToShow[index]),
+                              tooltip: "Editar",
                             ),
                           ),
                         ),

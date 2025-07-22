@@ -53,7 +53,6 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: Column(
@@ -74,7 +73,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                     icon: const Icon(Icons.clear_rounded, size: 16),
                     label: const Text('Limpiar filtros'),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600],
+                      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -85,20 +84,37 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
             TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar por cliente...',
-                prefixIcon: const Icon(Icons.search_rounded),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
-                fillColor: Colors.white,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+                fillColor: Theme.of(context).colorScheme.surface,
                 filled: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                hintStyle: UIUtils.getSubtitleStyle(context),
               ),
+              style: UIUtils.getTitleStyle(context),
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
@@ -129,7 +145,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                               onPressed: () => Navigator.of(context).pop(true),
                               child: const Text('Eliminar'),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
+                                foregroundColor: UIUtils.getErrorColor(context),
                               ),
                             ),
                           ],
@@ -146,10 +162,13 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                       );
                     },
                     background: Container(
-                      color: Colors.red,
+                      color: UIUtils.getErrorColor(context),
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: const Icon(Icons.delete, color: Colors.white),
+                      child: Icon(
+                        Icons.delete, 
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
                     ),
                     child: _buildOrderCard(orden),
                   )),
@@ -175,11 +194,11 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
           children: [
             Expanded(
                 child: _buildStatCard('Pendientes', pendientes.toString(),
-                    Colors.orange.shade600, 'pendiente')),
+                    UIUtils.getWarningColor(context), 'pendiente')),
             SizedBox(width: spacing),
             Expanded(
                 child: _buildStatCard('En Proceso', enProceso.toString(),
-                    Colors.blue.shade600, 'en_proceso')),
+                    UIUtils.getInfoColor(context), 'en_proceso')),
           ],
         ),
         SizedBox(height: spacing),
@@ -187,11 +206,11 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
           children: [
             Expanded(
                 child: _buildStatCard('Terminadas', terminadas.toString(),
-                    Colors.green.shade600, 'terminado')),
+                    UIUtils.getSuccessColor(context), 'terminado')),
             SizedBox(width: spacing),
             Expanded(
                 child: _buildStatCard('Por Entregar', porEntregar.toString(),
-                    Colors.red.shade600, 'por_entregar')),
+                    UIUtils.getErrorColor(context), 'por_entregar')),
           ],
         ),
       ],
@@ -231,8 +250,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                         style: TextStyle(
                           fontSize: isMobile ? 11 : 14,
                           fontWeight: FontWeight.w500,
-                          color:
-                              isSelected ? color : const Color(0xFF6B7280),
+                          color: isSelected ? color : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -304,15 +322,14 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                       children: [
                         Text(
                           'Orden #${orden.id.substring(0, isMobile ? 6 : 8)}',
-                          style: const TextStyle(
+                          style: UIUtils.getTitleStyle(context).copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
                         Text(
                           orden.cliente.nombre,
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 14,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -322,7 +339,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                   ),
                   // Botón PDF
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.red[600]),
+                    icon: Icon(
+                      Icons.picture_as_pdf, 
+                      color: UIUtils.getErrorColor(context),
+                    ),
                     tooltip: "Generar PDF",
                     onSelected: (String result) async {
                       await _generateOrderPDF(orden, result);
@@ -396,17 +416,14 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                           children: [
                             Text(
                               'Total',
-                              style: TextStyle(
-                                color: Colors.grey[600],
+                              style: UIUtils.getSubtitleStyle(context).copyWith(
                                 fontSize: 12,
                               ),
                             ),
                             Text(
                               'Bs ${orden.total.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                              style: UIUtils.getPriceStyle(context).copyWith(
                                 fontSize: 16,
-                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ],
@@ -416,8 +433,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                           children: [
                             Text(
                               'Saldo',
-                              style: TextStyle(
-                                color: Colors.grey[600],
+                              style: UIUtils.getSubtitleStyle(context).copyWith(
                                 fontSize: 12,
                               ),
                             ),
@@ -427,8 +443,8 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                                 color: orden.saldo > 0
-                                    ? Colors.orange
-                                    : Colors.green,
+                                    ? UIUtils.getWarningColor(context)
+                                    : UIUtils.getSuccessColor(context),
                               ),
                             ),
                           ],
@@ -439,24 +455,28 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.calendar_today_rounded,
-                            size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 16, 
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Entrega: ${DateTimeUtils.formatDate(orden.fechaEntrega)}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Icon(Icons.access_time_rounded,
-                            size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 16, 
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           DateTimeUtils.formatTime(orden.horaEntrega),
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
@@ -472,17 +492,14 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                       children: [
                         Text(
                           'Total',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
                         Text(
                           'Bs ${orden.total.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style: UIUtils.getPriceStyle(context).copyWith(
                             fontSize: 16,
-                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ],
@@ -492,8 +509,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                       children: [
                         Text(
                           'Saldo',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
@@ -502,7 +518,9 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: orden.saldo > 0 ? Colors.orange : Colors.green,
+                            color: orden.saldo > 0 
+                                ? UIUtils.getWarningColor(context) 
+                                : UIUtils.getSuccessColor(context),
                           ),
                         ),
                       ],
@@ -512,22 +530,20 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
                       children: [
                         Text(
                           'Entrega',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
                         Text(
                           '${orden.fechaEntrega.day}/${orden.fechaEntrega.month}',
-                          style: const TextStyle(
+                          style: UIUtils.getTitleStyle(context).copyWith(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
                         Text(
                           orden.horaEntrega.format(context),
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          style: UIUtils.getSubtitleStyle(context).copyWith(
                             fontSize: 12,
                           ),
                         ),
@@ -601,22 +617,20 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
             Icon(
               Icons.assignment_outlined,
               size: 64,
-              color: Colors.grey[400],
+              color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
             ),
-            const SizedBox(height: 16),
+            FormSpacing.verticalLarge(),
             Text(
               'No se encontraron órdenes',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey[400],
-                  ),
+              style: UIUtils.getTitleStyle(context).copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            FormSpacing.verticalSmall(),
             Text(
               'Crea una nueva orden desde la pestaña Cotizar',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+              style: UIUtils.getSubtitleStyle(context),
               textAlign: TextAlign.center,
             ),
           ],
@@ -658,15 +672,15 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> {
   Color _getStatusColor(String estado) {
     switch (estado) {
       case 'pendiente':
-        return Colors.orange;
+        return UIUtils.getWarningColor(context);
       case 'en_proceso':
-        return Colors.blue;
+        return UIUtils.getInfoColor(context);
       case 'terminado':
-        return Colors.green;
+        return UIUtils.getSuccessColor(context);
       case 'entregado':
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       default:
-        return Colors.black;
+        return Theme.of(context).colorScheme.onSurface;
     }
   }
 }

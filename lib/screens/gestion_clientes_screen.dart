@@ -6,6 +6,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
+import '../utils/utils.dart';
 import 'screens.dart';
 
 class GestionClientesScreen extends GestionScreen<Cliente> {
@@ -70,12 +71,44 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                 selectedItem: _clienteSeleccionado,
                 itemAsString: (Cliente cliente) => cliente.nombre,
                 onChanged: _onClienteSelected,
-                decoratorProps: const DropDownDecoratorProps(
+                decoratorProps: DropDownDecoratorProps(
                   decoration: InputDecoration(
                     labelText: 'Buscar Cliente',
-                    prefixIcon: Icon(Icons.search_rounded),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     hintText: 'Buscar cliente por nombre...',
-                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    labelStyle: UIUtils.getSubtitleStyle(context),
+                    hintStyle: UIUtils.getSubtitleStyle(context),
+                    floatingLabelStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 popupProps: PopupProps.menu(
@@ -88,22 +121,21 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                     ),
                   ),
                   itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
+                    final theme = Theme.of(context);
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Theme.of(context).primaryColor.withOpacity(0.1)
+                            ? theme.colorScheme.primaryContainer.withOpacity(0.1)
                             : null,
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.person_rounded,
-                            color: isSelected
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey,
-                            size: 20,
+                          UIUtils.buildThemedIcon(
+                            icon: Icons.person_rounded,
+                            context: context,
+                            isSelected: isSelected,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -112,22 +144,23 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                               children: [
                                 Text(
                                   cliente.nombre,
-                                  style: TextStyle(
+                                  style: UIUtils.getTitleStyle(
+                                    context,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: isSelected
-                                        ? Theme.of(context).primaryColor
+                                        ? theme.colorScheme.primary
                                         : null,
                                   ),
                                 ),
                                 Text(
                                   'Contacto: ${cliente.contacto}',
-                                  style: TextStyle(
+                                  style: UIUtils.getSubtitleStyle(context).copyWith(
                                     fontSize: 12,
                                     color: isSelected
-                                        ? Theme.of(context).primaryColor.withOpacity(0.8)
-                                        : Colors.grey[600],
+                                        ? theme.colorScheme.primary.withOpacity(0.8)
+                                        : null,
                                   ),
                                 ),
                               ],
@@ -138,6 +171,7 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                     );
                   },
                   emptyBuilder: (context, searchEntry) {
+                    final theme = Theme.of(context);
                     return Container(
                       padding: const EdgeInsets.all(20),
                       child: Column(
@@ -145,24 +179,20 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                           Icon(
                             Icons.search_off_rounded,
                             size: 48,
-                            color: Colors.grey[400],
+                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'No se encontraron clientes',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
+                            style: UIUtils.getTitleStyle(context).copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (searchEntry.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
                               'para "$searchEntry"',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
+                              style: UIUtils.getSubtitleStyle(context),
                             ),
                           ],
                         ],
@@ -179,31 +209,82 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
           Expanded(
             child: clientesToShow.isEmpty
                 ? Center(
-                    child: Text(showArchived
-                        ? 'No hay clientes archivados.'
-                        : 'No hay clientes.'))
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          showArchived ? Icons.archive_outlined : Icons.person_off_rounded,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          showArchived ? 'No hay clientes archivados' : 'No hay clientes',
+                          style: UIUtils.getTitleStyle(context).copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (!showArchived) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Presiona el botón + para agregar un cliente',
+                            style: UIUtils.getSubtitleStyle(context),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: clientesToShow.length,
-                    itemBuilder: (context, index) => ListTile(
-                      title: Text(clientesToShow[index].nombre),
-                      subtitle: Text('Contacto: ${clientesToShow[index].contacto}'),
-                      trailing: showArchived
-                          ? IconButton(
-                              icon: Icon(Icons.unarchive),
-                              onPressed: () => appState.restoreCliente(clientesToShow[index]),
-                              tooltip: "Restaurar",
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _showClienteDialog(context, cliente: clientesToShow[index])),
-                      onTap: () {
-                        if (!showArchived) {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => ClienteDetalleScreen(cliente: clientesToShow[index])));
-                        }
-                      },
+                    itemBuilder: (context, index) => Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        title: Text(
+                          clientesToShow[index].nombre,
+                          style: UIUtils.getTitleStyle(context),
+                        ),
+                        subtitle: Text(
+                          'Contacto: ${clientesToShow[index].contacto}',
+                          style: UIUtils.getSubtitleStyle(context),
+                        ),
+                        trailing: showArchived
+                            ? IconButton(
+                                icon: Icon(
+                                  Icons.unarchive,
+                                  color: UIUtils.getSuccessColor(context),
+                                ),
+                                onPressed: () => appState.restoreCliente(clientesToShow[index]),
+                                tooltip: "Restaurar",
+                              )
+                            : IconButton(
+                                icon: Icon(
+                                  Icons.edit,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                onPressed: () => _showClienteDialog(context, cliente: clientesToShow[index]),
+                                tooltip: "Editar",
+                              ),
+                        onTap: () {
+                          if (!showArchived) {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => ClienteDetalleScreen(cliente: clientesToShow[index])));
+                          }
+                        },
+                      ),
                     ),
                   ),
           ),

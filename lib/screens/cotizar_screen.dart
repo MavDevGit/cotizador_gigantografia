@@ -200,7 +200,6 @@ class _CotizarScreenState extends State<CotizarScreen> {
     final appState = Provider.of<AppState>(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -208,13 +207,13 @@ class _CotizarScreenState extends State<CotizarScreen> {
           child: Column(
             children: [
               _buildAddWorkSection(appState),
-              const SizedBox(height: 16),
+              FormSpacing.verticalLarge(),
               _buildWorkList(),
-              const SizedBox(height: 16),
+              FormSpacing.verticalLarge(),
               _buildSummaryAndClientSection(appState),
-              const SizedBox(height: 20),
+              FormSpacing.verticalExtraLarge(),
               _buildSaveButton(),
-              const SizedBox(height: 20),
+              FormSpacing.verticalExtraLarge(),
             ],
           ),
         ),
@@ -223,15 +222,20 @@ class _CotizarScreenState extends State<CotizarScreen> {
   }
 
   Widget _buildSaveButton() {
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.save_rounded),
-      label: const Text('Guardar Orden de Trabajo'),
-      style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 56),
+    return Center(
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.save_rounded),
+        label: const Text('Guardar Orden de Trabajo'),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty
+            ? _guardarOrden
+            : null,
       ),
-      onPressed: _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty
-          ? _guardarOrden
-          : null,
     );
   }
 
@@ -259,11 +263,44 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   _trabajoSeleccionado = newValue;
                 });
               },
-              decoratorProps: const DropDownDecoratorProps(
+              decoratorProps: DropDownDecoratorProps(
                 decoration: InputDecoration(
                   labelText: 'Tipo de Trabajo',
-                  prefixIcon: Icon(Icons.work_rounded),
+                  prefixIcon: Icon(
+                    Icons.work_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   hintText: 'Buscar tipo de trabajo...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  labelStyle: UIUtils.getSubtitleStyle(context),
+                  hintStyle: UIUtils.getSubtitleStyle(context),
+                  floatingLabelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                  ),
                 ),
               ),
               popupProps: PopupProps.menu(
@@ -276,36 +313,36 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   ),
                 ),
                 itemBuilder: (context, Trabajo trabajo, isSelected, isHighlighted) {
+                  final theme = Theme.of(context);
                   return Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Theme.of(context).primaryColor.withOpacity(0.1)
+                          ? theme.colorScheme.primaryContainer.withOpacity(0.1)
                           : null,
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.work_rounded,
-                          color: isSelected
-                              ? Theme.of(context).primaryColor
-                              : Colors.grey,
-                          size: 20,
+                        UIUtils.buildThemedIcon(
+                          icon: Icons.work_rounded,
+                          context: context,
+                          isSelected: isSelected,
                         ),
-                        const SizedBox(width: 12),
+                        FormSpacing.horizontalMedium(),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 trabajo.nombre,
-                                style: TextStyle(
+                                style: UIUtils.getTitleStyle(
+                                  context,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.normal,
                                   color: isSelected
-                                      ? Theme.of(context).primaryColor
+                                      ? theme.colorScheme.primary
                                       : null,
                                 ),
                               ),
@@ -314,11 +351,10 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         ),
                         Text(
                           'Bs ${trabajo.precioM2.toStringAsFixed(2)}/m²',
-                          style: TextStyle(
-                            fontSize: 12,
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: isSelected
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey[600],
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -327,6 +363,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   );
                 },
                 emptyBuilder: (context, searchEntry) {
+                  final theme = Theme.of(context);
                   return Container(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -334,23 +371,21 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         Icon(
                           Icons.work_off_rounded,
                           size: 48,
-                          color: Colors.grey[400],
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
                         ),
-                        const SizedBox(height: 8),
+                        FormSpacing.verticalSmall(),
                         Text(
                           'No se encontraron trabajos',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         if (searchEntry.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          FormSpacing.verticalSmall(),
                           Text(
                             'para "$searchEntry"',
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 14,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
                             ),
                           ),
                         ],
@@ -479,36 +514,23 @@ class _CotizarScreenState extends State<CotizarScreen> {
             FormSpacing.verticalLarge(),
 
             // Subtotal
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0F9FF),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFFE0F2FE),
-                ),
-              ),
+            UIUtils.buildInfoContainer(
+              context: context,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     "Subtotal:",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1A1D29),
-                        ),
+                    style: UIUtils.getTitleStyle(context),
                   ),
                   Text(
                     "Bs ${_subtotalActual.toStringAsFixed(2)}",
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF98CA3F),
-                        ),
+                    style: UIUtils.getPriceStyle(context, isLarge: true),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            FormSpacing.verticalLarge(),
 
             // Botón agregar
             Align(
@@ -537,16 +559,14 @@ class _CotizarScreenState extends State<CotizarScreen> {
     required ValueChanged<String> onChanged,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    return TextFormField(
+    return ThemedInputField(
       controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        hintText: hintText,
-      ),
-      keyboardType: TextInputType.number,
+      label: label,
+      icon: icon,
+      hintText: hintText,
       onChanged: onChanged,
       inputFormatters: inputFormatters,
+      keyboardType: TextInputType.number,
     );
   }
 
@@ -560,22 +580,20 @@ class _CotizarScreenState extends State<CotizarScreen> {
               Icon(
                 Icons.work_off_rounded,
                 size: 64,
-                color: Colors.grey[400],
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
               ),
-              const SizedBox(height: 16),
+              FormSpacing.verticalLarge(),
               Text(
                 'Aún no hay trabajos en esta orden',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.grey[400],
-                    ),
+                style: UIUtils.getTitleStyle(context).copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              FormSpacing.verticalSmall(),
               Text(
                 'Agrega trabajos usando el formulario superior',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: UIUtils.getSubtitleStyle(context),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -593,43 +611,40 @@ class _CotizarScreenState extends State<CotizarScreen> {
             // Lista de trabajos
             ...List.generate(_trabajosEnOrden.length, (index) {
               final item = _trabajosEnOrden[index];
+              final theme = Theme.of(context);
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.withOpacity(0.3),
-                  ),
-                ),
+                decoration: UIUtils.cardDecoration(context),
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: theme.colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.work_rounded,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: theme.colorScheme.onPrimaryContainer,
                     ),
                   ),
                   title: Text(
                     '${item.trabajo.nombre} (${item.cantidad}x)',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: UIUtils.getTitleStyle(context),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 4),
-                      Text('Dimensiones: ${item.ancho}m x ${item.alto}m'),
+                      FormSpacing.verticalSmall(),
+                      Text(
+                        'Dimensiones: ${item.ancho}m x ${item.alto}m',
+                        style: UIUtils.getSubtitleStyle(context),
+                      ),
                       if (item.adicional > 0)
                         Text(
-                            'Adicional: Bs ${item.adicional.toStringAsFixed(2)}'),
+                          'Adicional: Bs ${item.adicional.toStringAsFixed(2)}',
+                          style: UIUtils.getSubtitleStyle(context),
+                        ),
                     ],
                   ),
                   trailing: Row(
@@ -641,31 +656,21 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         children: [
                           Text(
                             'Bs ${item.precioFinal.toStringAsFixed(2)}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
-                                ),
+                            style: UIUtils.getPriceStyle(context),
                           ),
-                          const SizedBox(height: 4),
+                          FormSpacing.verticalSmall(),
                           Text(
                             '${item.ancho * item.alto} m²',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: Colors.grey[600],
-                                ),
+                            style: UIUtils.getSubtitleStyle(context),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 8),
+                      FormSpacing.horizontalSmall(),
                       IconButton(
-                        icon:
-                            const Icon(Icons.delete_rounded, color: Colors.red),
+                        icon: Icon(
+                          Icons.delete_rounded, 
+                          color: UIUtils.getErrorColor(context),
+                        ),
                         onPressed: () {
                           setState(() {
                             _trabajosEnOrden.removeAt(index);
@@ -682,30 +687,13 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
             // Total de trabajos
             if (_trabajosEnOrden.isNotEmpty) ...[
-              const Divider(height: 32),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total de Trabajos:',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    Text(
-                      'Bs ${_trabajosEnOrden.fold(0.0, (sum, item) => sum + item.precioFinal).toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                    ),
-                  ],
+              UIUtils.buildSectionDivider(context),
+              UIUtils.buildInfoContainer(
+                context: context, 
+                child: PriceDisplay(
+                  label: 'Total de Trabajos:',
+                  amount: _trabajosEnOrden.fold(0.0, (sum, item) => sum + item.precioFinal),
+                  isTotal: true,
                 ),
               ),
             ],
@@ -739,113 +727,136 @@ class _CotizarScreenState extends State<CotizarScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Selección de cliente
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownSearch<Cliente>(
-                items: (filter, infiniteScrollProps) => clientesUnicos,
-                selectedItem: _clienteSeleccionado,
-                itemAsString: (Cliente cliente) => cliente.nombre,
-                onChanged: (Cliente? newValue) {
-                  setState(() {
-                    _clienteSeleccionado = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Seleccione un cliente' : null,
-                decoratorProps: const DropDownDecoratorProps(
-                  decoration: InputDecoration(
-                    labelText: 'Cliente',
-                    prefixIcon: Icon(Icons.person_rounded),
-                    border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    hintText: 'Buscar cliente...',
+            DropdownSearch<Cliente>(
+              items: (filter, infiniteScrollProps) => clientesUnicos,
+              selectedItem: _clienteSeleccionado,
+              itemAsString: (Cliente cliente) => cliente.nombre,
+              onChanged: (Cliente? newValue) {
+                setState(() {
+                  _clienteSeleccionado = newValue;
+                });
+              },
+              validator: (value) =>
+                  value == null ? 'Seleccione un cliente' : null,
+              decoratorProps: DropDownDecoratorProps(
+                decoration: InputDecoration(
+                  labelText: 'Cliente',
+                  prefixIcon: Icon(
+                    Icons.person_rounded,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-                popupProps: PopupProps.menu(
-                  showSearchBox: true,
-                  searchFieldProps: const TextFieldProps(
-                    decoration: InputDecoration(
-                      hintText: 'Buscar cliente...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
+                  hintText: 'Buscar cliente...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                  itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Theme.of(context).primaryColor.withOpacity(0.1)
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.person_rounded,
-                            color: isSelected
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              cliente.nombre,
-                              style: TextStyle(
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                                color: isSelected
-                                    ? Theme.of(context).primaryColor
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  emptyBuilder: (context, searchEntry) {
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.search_off_rounded,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No se encontraron clientes',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
-                            ),
-                          ),
-                          if (searchEntry.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'para "$searchEntry"',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  labelStyle: UIUtils.getSubtitleStyle(context),
+                  hintStyle: UIUtils.getSubtitleStyle(context),
+                  floatingLabelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                  ),
                 ),
-                compareFn: (Cliente cliente1, Cliente cliente2) =>
-                    cliente1.id == cliente2.id,
               ),
+              popupProps: PopupProps.menu(
+                showSearchBox: true,
+                searchFieldProps: const TextFieldProps(
+                  decoration: InputDecoration(
+                    hintText: 'Buscar cliente...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
+                  final theme = Theme.of(context);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.colorScheme.primaryContainer.withOpacity(0.1)
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        UIUtils.buildThemedIcon(
+                          icon: Icons.person_rounded,
+                          context: context,
+                          isSelected: isSelected,
+                        ),
+                        FormSpacing.horizontalMedium(),
+                        Expanded(
+                          child: Text(
+                            cliente.nombre,
+                            style: UIUtils.getTitleStyle(
+                              context,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? theme.colorScheme.primary
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                emptyBuilder: (context, searchEntry) {
+                  final theme = Theme.of(context);
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 48,
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                        ),
+                        FormSpacing.verticalSmall(),
+                        Text(
+                          'No se encontraron clientes',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (searchEntry.isNotEmpty) ...[
+                          FormSpacing.verticalSmall(),
+                          Text(
+                            'para "$searchEntry"',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+              compareFn: (Cliente cliente1, Cliente cliente2) =>
+                  cliente1.id == cliente2.id,
             ),
             FormSpacing.verticalLarge(),
 
@@ -853,104 +864,58 @@ class _CotizarScreenState extends State<CotizarScreen> {
             ResponsiveLayout(
               mobile: Column(
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextFormField(
-                      controller: _totalPersonalizadoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Total Personalizado (Bs)',
-                        prefixIcon: Icon(Icons.edit_rounded),
-                        border: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        hintText: 'Opcional',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                    ),
+                  ThemedInputField(
+                    controller: _totalPersonalizadoController,
+                    label: 'Total Personalizado (Bs)',
+                    icon: Icons.edit_rounded,
+                    hintText: 'Opcional',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
+                    keyboardType: TextInputType.number,
                   ),
                   FormSpacing.verticalMedium(),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextFormField(
-                      controller: _adelantoController,
-                      decoration: const InputDecoration(
-                        labelText: 'Adelanto (Bs)',
-                        prefixIcon: Icon(Icons.payment_rounded),
-                        border: InputBorder.none,
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        hintText: '0.00',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                    ),
+                  ThemedInputField(
+                    controller: _adelantoController,
+                    label: 'Adelanto (Bs)',
+                    icon: Icons.payment_rounded,
+                    hintText: '0.00',
+                    onChanged: (v) => setState(() {}),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                    ],
+                    keyboardType: TextInputType.number,
                   ),
                 ],
               ),
               tablet: Row(
                 children: [
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextFormField(
-                        controller: _totalPersonalizadoController,
-                        decoration: const InputDecoration(
-                          labelText: 'Total Personalizado (Bs)',
-                          prefixIcon: Icon(Icons.edit_rounded),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
-                          hintText: 'Opcional',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) => setState(() {}),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d*'))
-                        ],
-                      ),
+                    child: ThemedInputField(
+                      controller: _totalPersonalizadoController,
+                      label: 'Total Personalizado (Bs)',
+                      icon: Icons.edit_rounded,
+                      hintText: 'Opcional',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
+                      keyboardType: TextInputType.number,
                     ),
                   ),
                   FormSpacing.horizontalMedium(),
                   Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextFormField(
-                        controller: _adelantoController,
-                        decoration: const InputDecoration(
-                          labelText: 'Adelanto (Bs)',
-                          prefixIcon: Icon(Icons.payment_rounded),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
-                          hintText: '0.00',
-                        ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) => setState(() {}),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d*'))
-                        ],
-                      ),
+                    child: ThemedInputField(
+                      controller: _adelantoController,
+                      label: 'Adelanto (Bs)',
+                      icon: Icons.payment_rounded,
+                      hintText: '0.00',
+                      onChanged: (v) => setState(() {}),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                      ],
+                      keyboardType: TextInputType.number,
                     ),
                   ),
                 ],
@@ -959,23 +924,48 @@ class _CotizarScreenState extends State<CotizarScreen> {
             FormSpacing.verticalLarge(),
 
             // Notas
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TextFormField(
-                controller: _notasController,
-                decoration: const InputDecoration(
-                  labelText: 'Notas',
-                  prefixIcon: Icon(Icons.note_rounded),
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  hintText: 'Información adicional...',
+            TextFormField(
+              controller: _notasController,
+              decoration: InputDecoration(
+                labelText: 'Notas',
+                prefixIcon: Icon(
+                  Icons.note_rounded,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                maxLines: 3,
+                hintText: 'Información adicional...',
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                labelStyle: UIUtils.getSubtitleStyle(context),
+                hintStyle: UIUtils.getSubtitleStyle(context),
+                floatingLabelStyle: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 14,
+                ),
               ),
+              maxLines: 3,
+              style: UIUtils.getTitleStyle(context),
             ),
             FormSpacing.verticalLarge(),
 
@@ -987,30 +977,20 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                    ),
+                    decoration: UIUtils.cardDecoration(context),
                     child: InkWell(
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: _fechaEntrega,
-                          firstDate: DateTime(
-                              2020, 1, 1), // Permite fechas desde 2020
-                          lastDate:
-                              DateTime.now().add(const Duration(days: 365)),
-                          locale: const Locale('es', 'ES'), // Español
-                          // Configurar el primer día de la semana como lunes
+                          firstDate: DateTime(2020, 1, 1),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          locale: const Locale('es', 'ES'),
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
                                 datePickerTheme: DatePickerThemeData(
-                                  // Configurar que la semana inicie con lunes
-                                  dayOverlayColor:
-                                      MaterialStateProperty.all(
-                                          Colors.transparent),
+                                  dayOverlayColor: MaterialStateProperty.all(Colors.transparent),
                                 ),
                               ),
                               child: child!,
@@ -1022,30 +1002,22 @@ class _CotizarScreenState extends State<CotizarScreen> {
                       },
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.calendar_today_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          FormSpacing.horizontalMedium(),
                           Flexible(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Fecha de Entrega',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
+                                  style: UIUtils.getSubtitleStyle(context),
                                 ),
                                 Text(
                                   DateTimeUtils.formatDate(_fechaEntrega),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  style: UIUtils.getTitleStyle(context),
                                 ),
                               ],
                             ),
@@ -1059,11 +1031,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                    ),
+                    decoration: UIUtils.cardDecoration(context),
                     child: InkWell(
                       onTap: () async {
                         final picked = await showTimePicker(
@@ -1075,30 +1043,22 @@ class _CotizarScreenState extends State<CotizarScreen> {
                       },
                       child: Row(
                         children: [
-                          Icon(Icons.access_time_rounded,
-                              color: Theme.of(context).colorScheme.primary),
-                          const SizedBox(width: 12),
+                          Icon(
+                            Icons.access_time_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          FormSpacing.horizontalMedium(),
                           Flexible(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Hora de Entrega',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
+                                  style: UIUtils.getSubtitleStyle(context),
                                 ),
                                 Text(
                                   DateTimeUtils.formatTime(_horaEntrega),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  style: UIUtils.getTitleStyle(context),
                                 ),
                               ],
                             ),
@@ -1114,30 +1074,20 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                      ),
+                      decoration: UIUtils.cardDecoration(context),
                       child: InkWell(
                         onTap: () async {
                           final picked = await showDatePicker(
                             context: context,
                             initialDate: _fechaEntrega,
-                            firstDate: DateTime(
-                                2020, 1, 1), // Permite fechas desde 2020
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                            locale: const Locale('es', 'ES'), // Español
-                            // Configurar el primer día de la semana como lunes
+                            firstDate: DateTime(2020, 1, 1),
+                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            locale: const Locale('es', 'ES'),
                             builder: (context, child) {
                               return Theme(
                                 data: Theme.of(context).copyWith(
                                   datePickerTheme: DatePickerThemeData(
-                                    // Configurar que la semana inicie con lunes
-                                    dayOverlayColor:
-                                        MaterialStateProperty.all(
-                                            Colors.transparent),
+                                    dayOverlayColor: MaterialStateProperty.all(Colors.transparent),
                                   ),
                                 ),
                                 child: child!,
@@ -1149,30 +1099,22 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         },
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today_rounded,
-                                color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            FormSpacing.horizontalMedium(),
                             Flexible(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Fecha de Entrega',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Colors.grey[600],
-                                        ),
+                                    style: UIUtils.getSubtitleStyle(context),
                                   ),
                                   Text(
                                     DateTimeUtils.formatDate(_fechaEntrega),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    style: UIUtils.getTitleStyle(context),
                                   ),
                                 ],
                               ),
@@ -1186,11 +1128,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                      ),
+                      decoration: UIUtils.cardDecoration(context),
                       child: InkWell(
                         onTap: () async {
                           final picked = await showTimePicker(
@@ -1202,30 +1140,22 @@ class _CotizarScreenState extends State<CotizarScreen> {
                         },
                         child: Row(
                           children: [
-                            Icon(Icons.access_time_rounded,
-                                color: Theme.of(context).colorScheme.primary),
-                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.access_time_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            FormSpacing.horizontalMedium(),
                             Flexible(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Hora de Entrega',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: Colors.grey[600],
-                                        ),
+                                    style: UIUtils.getSubtitleStyle(context),
                                   ),
                                   Text(
                                     DateTimeUtils.formatTime(_horaEntrega),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    style: UIUtils.getTitleStyle(context),
                                   ),
                                 ],
                               ),
@@ -1241,88 +1171,53 @@ class _CotizarScreenState extends State<CotizarScreen> {
             FormSpacing.verticalLarge(),
 
             // Resumen financiero
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey.withOpacity(0.3),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            UIUtils.buildSummaryContainer(
+              context: context,
+              isElevated: true,
               child: Column(
                 children: [
-                  _buildSummaryRow(
-                      'Total Bruto:', 'Bs ${totalBruto.toStringAsFixed(2)}'),
+                  PriceDisplay(
+                    label: 'Total Bruto:',
+                    amount: totalBruto,
+                  ),
                   if (rebaja > 0) ...[
-                    const SizedBox(height: 8),
-                    _buildSummaryRow(
-                        'Rebaja:', '-Bs ${rebaja.toStringAsFixed(2)}',
-                        color: Colors.orange),
+                    FormSpacing.verticalSmall(),
+                    PriceDisplay(
+                      label: 'Rebaja:',
+                      amount: rebaja,
+                      color: UIUtils.getWarningColor(context),
+                    ),
                   ],
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  _buildSummaryRow(
-                      'Total Final:', 'Bs ${_totalOrden.toStringAsFixed(2)}',
-                      isTotal: true),
+                  FormSpacing.verticalMedium(),
+                  UIUtils.buildSectionDivider(context),
+                  FormSpacing.verticalMedium(),
+                  PriceDisplay(
+                    label: 'Total Final:',
+                    amount: _totalOrden,
+                    isTotal: true,
+                  ),
                   if (double.tryParse(_adelantoController.text) != null &&
                       double.tryParse(_adelantoController.text)! > 0) ...[
-                    const SizedBox(height: 8),
-                    _buildSummaryRow(
-                        'Adelanto:', 'Bs ${_adelantoController.text}',
-                        color: Colors.green),
-                    const SizedBox(height: 8),
-                    _buildSummaryRow(
-                        'Saldo:',
-                        'Bs ${(_totalOrden - (double.tryParse(_adelantoController.text) ?? 0)).toStringAsFixed(2)}',
-                        color: Colors.blue),
+                    FormSpacing.verticalSmall(),
+                    PriceDisplay(
+                      label: 'Adelanto:',
+                      amount: double.tryParse(_adelantoController.text) ?? 0,
+                      color: UIUtils.getSuccessColor(context),
+                    ),
+                    FormSpacing.verticalSmall(),
+                    PriceDisplay(
+                      label: 'Saldo:',
+                      amount: _totalOrden - (double.tryParse(_adelantoController.text) ?? 0),
+                      color: UIUtils.getInfoColor(context),
+                    ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            FormSpacing.verticalExtraLarge(),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String value,
-      {bool isTotal = false, Color? color}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          flex: 2,
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
-                ),
-          ),
-        ),
-        Expanded(
-          flex: 1,
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color ??
-                      (isTotal ? Theme.of(context).colorScheme.primary : null),
-                  fontSize: isTotal ? 18 : null,
-                ),
-            textAlign: TextAlign.end,
-          ),
-        ),
-      ],
     );
   }
 }

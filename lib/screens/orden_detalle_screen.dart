@@ -238,7 +238,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                         onPressed: () => Navigator.of(context).pop(true),
                         child: const Text('Eliminar'),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
+                          foregroundColor: UIUtils.getErrorColor(context),
                         ),
                       ),
                     ],
@@ -361,8 +361,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                     children: [
                       Text('Bs ${trabajo.precioFinal.toStringAsFixed(2)}'),
                       IconButton(
-                        icon: Icon(Icons.delete_outline,
-                            color: Colors.redAccent),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: UIUtils.getErrorColor(context),
+                        ),
                         onPressed: () {
                           setState(() {
                             _ordenEditable.trabajos.removeAt(index);
@@ -413,12 +415,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.grey.withOpacity(0.3)),
-                        ),
+                        decoration: UIUtils.cardDecoration(context),
                         child: InkWell(
                           onTap: () async {
                             final picked = await showDatePicker(
@@ -461,21 +458,13 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                   children: [
                                     Text(
                                       'Fecha de Entrega',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey[600],
-                                          ),
+                                      style: UIUtils.getSubtitleStyle(context),
                                     ),
                                     Text(
                                       DateTimeUtils.formatDate(_ordenEditable.fechaEntrega),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      style: UIUtils.getTitleStyle(context).copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -489,12 +478,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.grey.withOpacity(0.3)),
-                        ),
+                        decoration: UIUtils.cardDecoration(context),
                         child: InkWell(
                           onTap: () async {
                             final picked = await showTimePicker(
@@ -518,21 +502,13 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                   children: [
                                     Text(
                                       'Hora de Entrega',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey[600],
-                                          ),
+                                      style: UIUtils.getSubtitleStyle(context),
                                     ),
                                     Text(
                                       DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                      style: UIUtils.getTitleStyle(context).copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -548,12 +524,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: Colors.grey.withOpacity(0.3)),
-                          ),
+                          decoration: UIUtils.cardDecoration(context),
                           child: InkWell(
                             onTap: () async {
                               final picked = await showDatePicker(
@@ -597,12 +568,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                     children: [
                                       Text(
                                         'Fecha de Entrega',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Colors.grey[600],
-                                            ),
+                                        style: UIUtils.getSubtitleStyle(context),
                                       ),
                                       Text(
                                         DateFormat(
@@ -610,12 +576,9 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                                 'es_ES')
                                             .format(
                                                 _ordenEditable.fechaEntrega),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                        style: UIUtils.getTitleStyle(context).copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -629,12 +592,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: Colors.grey.withOpacity(0.3)),
-                          ),
+                          decoration: UIUtils.cardDecoration(context),
                           child: InkWell(
                             onTap: () async {
                               final picked = await showTimePicker(
@@ -659,21 +617,13 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                                     children: [
                                       Text(
                                         'Hora de Entrega',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Colors.grey[600],
-                                            ),
+                                        style: UIUtils.getSubtitleStyle(context),
                                       ),
                                       Text(
                                         DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                        style: UIUtils.getTitleStyle(context).copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -801,19 +751,23 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   }
 
   Widget _financialRow(String label, String value, {bool isTotal = false}) {
-    final style = isTotal
-        ? Theme.of(context)
-            .textTheme
-            .titleLarge
-            ?.copyWith(fontWeight: FontWeight.bold)
-        : Theme.of(context).textTheme.titleMedium;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: style),
-          Text(value, style: style),
+          Text(
+            label, 
+            style: isTotal 
+                ? UIUtils.getTitleStyle(context).copyWith(fontWeight: FontWeight.bold)
+                : UIUtils.getTitleStyle(context),
+          ),
+          Text(
+            value, 
+            style: isTotal 
+                ? UIUtils.getPriceStyle(context, isLarge: true)
+                : UIUtils.getPriceStyle(context),
+          ),
         ],
       ),
     );

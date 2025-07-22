@@ -113,9 +113,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Configuración de Notificaciones'),
-          backgroundColor: Colors.white,
-          elevation: 1,
-          shadowColor: Colors.black12,
           actions: [
             IconButton(
               icon: const Icon(Icons.save),
@@ -129,9 +126,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               Tab(icon: Icon(Icons.settings), text: 'Configuración'),
               Tab(icon: Icon(Icons.schedule), text: 'Programadas'),
             ],
-            labelColor: const Color(0xFF98CA3F),
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: const Color(0xFF98CA3F),
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            indicatorColor: Theme.of(context).colorScheme.primary,
             onTap: (index) {
               setState(() => _selectedTabIndex = index);
               // Refrescar notificaciones cuando se cambia a la pestaña de programadas
@@ -141,7 +138,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             },
           ),
         ),
-        backgroundColor: const Color(0xFFFAFAFA),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : TabBarView(
@@ -226,15 +222,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Icon(
+            icon, 
+            size: 20, 
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
+              style: UIUtils.getSubtitleStyle(context),
             ),
           ),
           Container(
@@ -264,11 +261,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.tune, color: Color(0xFF98CA3F)),
-                SizedBox(width: 8),
-                Text(
+                Icon(
+                  Icons.tune, 
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                const Text(
                   'Configuración General',
                   style: TextStyle(
                     fontSize: 18,
@@ -317,7 +317,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: onChanged != null ? Colors.grey[600] : Colors.grey[400]),
+          Icon(
+            icon, 
+            size: 20, 
+            color: onChanged != null 
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -325,17 +331,21 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: UIUtils.getTitleStyle(context).copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: onChanged != null ? Colors.black87 : Colors.grey[400],
+                    color: onChanged != null 
+                        ? null 
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: UIUtils.getSubtitleStyle(context).copyWith(
                     fontSize: 12,
-                    color: onChanged != null ? Colors.grey[600] : Colors.grey[400],
+                    color: onChanged != null 
+                        ? null 
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                   ),
                 ),
               ],
@@ -344,7 +354,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF98CA3F),
+            activeColor: Theme.of(context).colorScheme.primary,
           ),
         ],
       ),
@@ -415,23 +425,22 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Las notificaciones se actualizan automáticamente cuando cambias fechas de entrega.',
-              style: TextStyle(
-                color: Colors.grey,
+              style: UIUtils.getSubtitleStyle(context).copyWith(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
               ),
             ),
             const SizedBox(height: 16),
             if (_pendingNotifications.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
                   child: Text(
                     'No hay notificaciones programadas',
-                    style: TextStyle(
-                      color: Colors.grey,
+                    style: UIUtils.getTitleStyle(context).copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 16,
                     ),
                   ),
@@ -457,10 +466,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+      decoration: UIUtils.cardDecoration(context).copyWith(
+        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,14 +477,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: UIUtils.getInfoColor(context).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   'ID: ${notification.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: Colors.blue,
+                    color: UIUtils.getInfoColor(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -486,14 +493,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               Icon(
                 Icons.notifications_outlined,
                 size: 16,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             notification.title ?? 'Sin título',
-            style: const TextStyle(
+            style: UIUtils.getTitleStyle(context).copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 14,
             ),
@@ -501,19 +508,18 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           const SizedBox(height: 4),
           Text(
             notification.body ?? 'Sin contenido',
-            style: TextStyle(
+            style: UIUtils.getSubtitleStyle(context).copyWith(
               fontSize: 12,
-              color: Colors.grey[600],
             ),
           ),
           if (notification.payload != null) ...[
             const SizedBox(height: 4),
             Text(
               'Payload: ${notification.payload}',
-              style: TextStyle(
+              style: UIUtils.getSubtitleStyle(context).copyWith(
                 fontSize: 10,
-                color: Colors.grey[500],
                 fontStyle: FontStyle.italic,
+                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
               ),
             ),
           ],
@@ -531,15 +537,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pendiente':
-        return Colors.orange;
+        return UIUtils.getWarningColor(context);
       case 'en_proceso':
-        return Colors.blue;
+        return UIUtils.getInfoColor(context);
       case 'terminado':
-        return Colors.green;
+        return UIUtils.getSuccessColor(context);
       case 'entregado':
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       default:
-        return Colors.black;
+        return Theme.of(context).colorScheme.onSurface;
     }
   }
 
@@ -548,7 +554,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: isError ? Colors.red : Colors.green,
+          backgroundColor: isError 
+              ? UIUtils.getErrorColor(context) 
+              : UIUtils.getSuccessColor(context),
         ),
       );
     }
