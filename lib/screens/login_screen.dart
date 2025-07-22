@@ -38,11 +38,26 @@ class _LoginScreenState extends State<LoginScreen> {
     final isTablet = MediaQuery.of(context).size.width > 600;
     final theme = Theme.of(context);
 
+    final appState = Provider.of<AppState>(context);
+    final isDark = appState.themeMode == ThemeMode.dark;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Navigator.canPop(context) ? null : Container(),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: ActionChip(
+              avatar: Icon(isDark ? Icons.dark_mode : Icons.light_mode, size: 20),
+              label: Text(isDark ? 'Oscuro' : 'Claro'),
+              onPressed: () {
+                appState.setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
+              },
+              backgroundColor: theme.chipTheme.backgroundColor,
+              labelStyle: theme.chipTheme.labelStyle,
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -146,7 +161,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () {},
                           icon: Brand(Brands.google, size: 20),
-                          label: const Text('Google'),
+                          label: Text(
+                            'Google',
+                            style: TextStyle(color: theme.colorScheme.onSurface),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -154,7 +172,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: OutlinedButton.icon(
                           onPressed: () {},
                           icon: Brand(Brands.facebook, size: 20),
-                          label: const Text('Facebook'),
+                          label: Text(
+                            'Facebook',
+                            style: TextStyle(color: theme.colorScheme.onSurface),
+                          ),
                         ),
                       ),
                     ],
