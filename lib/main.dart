@@ -155,28 +155,35 @@ class CotizadorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cotizador Pro',
-      theme: _buildTheme(),
-      home: const AuthWrapper(),
-      debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('es', 'ES'), // Español
-      ],
-      locale: const Locale('es', 'ES'),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return MaterialApp(
+          title: 'Cotizador Pro',
+          theme: _buildLightTheme(),
+          darkTheme: _buildDarkTheme(),
+          themeMode: appState.themeMode,
+          home: const AuthWrapper(),
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('es', 'ES'), // Español
+          ],
+          locale: const Locale('es', 'ES'),
+        );
+      },
     );
   }
 
-  ThemeData _buildTheme() {
-    const primaryColor = Color(0xFF98CA3F);
-    const backgroundColor = Color(0xFFFAFAFA);
-    const surfaceColor = Color(0xFFFFFFFF);
-    const cardColor = Color(0xFFFFFFFF);
+  ThemeData _buildLightTheme() {
+    const primaryColor = Color(0xFF0AE98A);
+    const secondaryColor = Color(0xFF1292EE);
+    const backgroundColor = Colors.white;
+    const surfaceColor = Color(0xFFF9FAFB);
+    const cardColor = Colors.white;
     const textColor = Color(0xFF1A1D29);
     const subtitleColor = Color(0xFF6B7280);
 
@@ -185,12 +192,15 @@ class CotizadorApp extends StatelessWidget {
       brightness: Brightness.light,
       colorScheme: ColorScheme.light(
         primary: primaryColor,
-        secondary: primaryColor,
+        secondary: secondaryColor,
         surface: surfaceColor,
-        onPrimary: Colors.white,
+        onPrimary: textColor,
         onSecondary: Colors.white,
         onSurface: textColor,
+        background: backgroundColor,
+        onBackground: textColor,
       ),
+      scaffoldBackgroundColor: backgroundColor,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: textColor,
@@ -217,11 +227,11 @@ class CotizadorApp extends StatelessWidget {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
+          foregroundColor: textColor,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           textStyle: const TextStyle(
             fontWeight: FontWeight.w600,
@@ -231,37 +241,37 @@ class CotizadorApp extends StatelessWidget {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryColor,
-          side: const BorderSide(color: Color(0xFFE5E7EB)),
+          foregroundColor: Colors.white,
+          backgroundColor: surfaceColor,
+          side: BorderSide.none,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primaryColor,
+          foregroundColor: secondaryColor,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+        fillColor: surfaceColor,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         labelStyle: const TextStyle(color: subtitleColor),
         hintStyle: const TextStyle(color: subtitleColor),
       ),
@@ -290,7 +300,136 @@ class CotizadorApp extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
       ),
       dividerTheme: const DividerThemeData(
-        color: Color(0xFFF3F4F6),
+        color: subtitleColor,
+        thickness: 1,
+        space: 1,
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    const primaryColor = Color(0xFF0AE98A);
+    const secondaryColor = Color(0xFF1292EE);
+    const backgroundColor = Color(0xFF13161C);
+    const surfaceColor = Color(0xFF1E2229);
+    const cardColor = Color(0xFF1E2229);
+    const textColor = Colors.white;
+    const subtitleColor = Color(0xFF59616F);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.dark(
+        primary: primaryColor,
+        secondary: secondaryColor,
+        surface: surfaceColor,
+        onPrimary: backgroundColor,
+        onSecondary: Colors.white,
+        onSurface: textColor,
+        background: backgroundColor,
+        onBackground: textColor,
+      ),
+      scaffoldBackgroundColor: backgroundColor,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
+        foregroundColor: textColor,
+        elevation: 0,
+        centerTitle: false,
+        shadowColor: Colors.black12,
+        titleTextStyle: TextStyle(
+          color: textColor,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        surfaceTintColor: Colors.transparent,
+      ),
+      cardTheme: CardThemeData(
+        color: cardColor,
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF2D3748), width: 1),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: backgroundColor,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: textColor,
+          backgroundColor: surfaceColor,
+          side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: secondaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: surfaceColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: const TextStyle(color: subtitleColor),
+        hintStyle: const TextStyle(color: subtitleColor),
+      ),
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: backgroundColor,
+      ),
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceColor,
+        labelStyle: const TextStyle(color: textColor),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: backgroundColor,
+        selectedItemColor: primaryColor,
+        unselectedItemColor: subtitleColor,
+        elevation: 8,
+        type: BottomNavigationBarType.fixed,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: subtitleColor,
         thickness: 1,
         space: 1,
       ),

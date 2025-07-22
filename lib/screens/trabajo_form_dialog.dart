@@ -116,7 +116,7 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
       actions: [
         if (!isOrderJob && widget.trabajo != null)
           TextButton(
-            child: Text('Archivar', style: TextStyle(color: Colors.redAccent)),
+            child: Text('Archivar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
             onPressed: () {
               Provider.of<AppState>(context, listen: false)
                   .deleteTrabajo(widget.trabajo!);
@@ -137,14 +137,20 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
       children: [
         TextFormField(
           initialValue: _nombre,
-          decoration: const InputDecoration(labelText: 'Nombre del Trabajo'),
+          decoration: InputDecoration(
+            labelText: 'Nombre del Trabajo',
+            labelStyle: Theme.of(context).textTheme.bodyMedium,
+          ),
           validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
           onSaved: (v) => _nombre = v!,
         ),
         FormSpacing.verticalMedium(),
         TextFormField(
           initialValue: _precioM2.toString(),
-          decoration: const InputDecoration(labelText: 'Precio por m²'),
+          decoration: InputDecoration(
+            labelText: 'Precio por m²',
+            labelStyle: Theme.of(context).textTheme.bodyMedium,
+          ),
           keyboardType: TextInputType.number,
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
@@ -183,15 +189,19 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
                   child: Text(t.nombre));
             }).toList(),
             onChanged: (val) => setState(() => _selectedTrabajo = val),
-            decoration: InputDecoration(labelText: 'Tipo de Trabajo'),
+            decoration: InputDecoration(
+              labelText: 'Tipo de Trabajo',
+              labelStyle: Theme.of(context).textTheme.bodyMedium,
+            ),
             validator: (v) => v == null ? 'Seleccione un trabajo' : null,
           ),
           FormSpacing.verticalMedium(),
           TextFormField(
             initialValue: _ancho != null ? _ancho.toString() : '',
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Ancho (m)',
               hintText: 'Ej: 1.0',
+              labelStyle: Theme.of(context).textTheme.bodyMedium,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
@@ -204,9 +214,10 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           FormSpacing.verticalMedium(),
           TextFormField(
             initialValue: _alto != null ? _alto.toString() : '',
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Alto (m)',
               hintText: 'Ej: 1.0',
+              labelStyle: Theme.of(context).textTheme.bodyMedium,
             ),
             keyboardType: TextInputType.number,
             inputFormatters: [
@@ -219,7 +230,10 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           FormSpacing.verticalMedium(),
           TextFormField(
             initialValue: _cantidad.toString(),
-            decoration: const InputDecoration(labelText: 'Cantidad'),
+            decoration: InputDecoration(
+              labelText: 'Cantidad',
+              labelStyle: Theme.of(context).textTheme.bodyMedium,
+            ),
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly
@@ -231,7 +245,10 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
           FormSpacing.verticalMedium(),
           TextFormField(
             initialValue: _adicional.toString(),
-            decoration: const InputDecoration(labelText: 'Adicional (Bs)'),
+            decoration: InputDecoration(
+              labelText: 'Adicional (Bs)',
+              labelStyle: Theme.of(context).textTheme.bodyMedium,
+            ),
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))

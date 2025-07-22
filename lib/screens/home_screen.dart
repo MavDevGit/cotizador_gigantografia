@@ -102,6 +102,14 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('Configuración de Tema'),
+            onTap: () {
+              Navigator.pop(context); // Cierra el drawer
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemeSettingsScreen()));
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.settings_outlined),
             title: const Text('Configuración General'),
             onTap: () {

@@ -11,3 +11,4 @@ export 'auth_wrapper.dart';
 export 'notification_settings_screen.dart';
 export 'signup_screen.dart';
 export 'home_screen.dart';
+export 'theme_settings_screen.dart';

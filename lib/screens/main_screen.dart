@@ -43,11 +43,11 @@ class _MainScreenState extends State<MainScreen> {
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: CircleAvatar(
-              backgroundColor: const Color(0xFF98CA3F),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               child: Text(
                 user?.nombre.substring(0, 1).toUpperCase() ?? 'U',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -81,8 +81,8 @@ class _MainScreenState extends State<MainScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(32),
-            decoration: const BoxDecoration(
-              color: Color(0xFF98CA3F),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,11 +90,11 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 32),
                 CircleAvatar(
                   radius: 32,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   child: Text(
                     user?.nombre.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(
-                      color: Color(0xFF98CA3F),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
@@ -188,6 +188,17 @@ class _MainScreenState extends State<MainScreen> {
                   },
                 ),
                 _buildDrawerItem(
+                  icon: Icons.palette_rounded,
+                  title: 'Tema',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ThemeSettingsScreen()));
+                  },
+                ),
+                _buildDrawerItem(
                   icon: Icons.settings_rounded,
                   title: 'Configuración',
                   onTap: () {
@@ -232,7 +243,7 @@ class _MainScreenState extends State<MainScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF6B7280)),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
       title: Text(title),
       onTap: onTap,
       shape: RoundedRectangleBorder(

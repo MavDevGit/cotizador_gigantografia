@@ -23,6 +23,9 @@ dependencies:
   # Gestión de estado con Provider
   provider: ^6.1.2
   
+  # Almacenamiento de preferencias
+  shared_preferences: ^2.2.2
+  
   # Base de datos local NoSQL
   hive: ^2.2.3
   hive_flutter: ^1.1.0

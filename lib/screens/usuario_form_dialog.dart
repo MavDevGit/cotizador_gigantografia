@@ -68,13 +68,19 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
           children: [
             TextFormField(
               initialValue: _nombre,
-              decoration: const InputDecoration(labelText: 'Nombre'),
+              decoration: InputDecoration(
+                labelText: 'Nombre',
+                labelStyle: Theme.of(context).textTheme.bodyMedium,
+              ),
               validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
               onSaved: (v) => _nombre = v!,
             ),
             TextFormField(
               initialValue: _email,
-              decoration: const InputDecoration(labelText: 'Email (login)'),
+              decoration: InputDecoration(
+                labelText: 'Email (login)',
+                labelStyle: Theme.of(context).textTheme.bodyMedium,
+              ),
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               validator: (v) => v!.isEmpty ? 'Email inválido' : null,
@@ -82,14 +88,20 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
             ),
             TextFormField(
               initialValue: _password,
-              decoration: const InputDecoration(labelText: 'Contraseña'),
+              decoration: InputDecoration(
+                labelText: 'Contraseña',
+                labelStyle: Theme.of(context).textTheme.bodyMedium,
+              ),
               validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
               onSaved: (v) => _password = v!,
               obscureText: true,
             ),
             DropdownButtonFormField<String>(
               value: _rol,
-              decoration: const InputDecoration(labelText: 'Rol'),
+              decoration: InputDecoration(
+                labelText: 'Rol',
+                labelStyle: Theme.of(context).textTheme.bodyMedium,
+              ),
               items: ['admin', 'empleado'].asMap().entries.map((entry) {
                 int index = entry.key;
                 String rol = entry.value;
@@ -114,7 +126,7 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
         if (widget.usuario != null &&
             widget.usuario!.id != appState.currentUser!.id)
           TextButton(
-            child: Text('Archivar', style: TextStyle(color: Colors.redAccent)),
+            child: Text('Archivar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
             onPressed: () {
               Provider.of<AppState>(context, listen: false)
                   .deleteUsuario(widget.usuario!);

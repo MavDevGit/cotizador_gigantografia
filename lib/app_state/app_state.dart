@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/services.dart';
@@ -11,6 +12,10 @@ import '../utils/utils.dart';
 class AppState extends ChangeNotifier {
   Usuario? _currentUser;
   Usuario? get currentUser => _currentUser;
+
+  // Theme management
+  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get themeMode => _themeMode;
 
   // Hive boxes references
   late Box<Cliente> _clientesBox;
@@ -32,6 +37,7 @@ class AppState extends ChangeNotifier {
     _usuariosBox = Hive.box<Usuario>('usuarios');
 
     await _createDefaultAdminUser();
+    await _loadThemePreference();
     notifyListeners();
   }
 
@@ -290,5 +296,30 @@ class AppState extends ChangeNotifier {
     usuario.eliminadoEn = null;
     await usuario.save();
     notifyListeners();
+  }
+
+  // Theme management methods
+  Future<void> _loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeIndex = prefs.getInt('theme_mode') ?? 0;
+    _themeMode = ThemeMode.values[themeIndex];
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('theme_mode', mode.index);
+    notifyListeners();
+  }
+
+  String getThemeModeString() {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return 'Claro';
+      case ThemeMode.dark:
+        return 'Oscuro';
+      case ThemeMode.system:
+        return 'Sistema';
+    }
   }
 }
