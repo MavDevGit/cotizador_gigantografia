@@ -66,6 +66,7 @@ class _SignupScreenState extends State<SignupScreen> {
               },
               backgroundColor: theme.chipTheme.backgroundColor,
               labelStyle: theme.chipTheme.labelStyle,
+              side: BorderSide.none,
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:dropdown_search/dropdown_search.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -295,25 +296,60 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                DropdownButtonFormField<Cliente>(
-                  value: clientesUnicos.firstWhere(
+                DropdownSearch<Cliente>(
+                  items: (filter, _) => clientesUnicos,
+                  selectedItem: clientesUnicos.firstWhere(
                       (c) => c.id == _ordenEditable.cliente.id,
                       orElse: () => _ordenEditable.cliente),
-                  decoration: const InputDecoration(
-                      labelText: 'Cliente', border: OutlineInputBorder()),
-                  items: clientesUnicos.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    Cliente c = entry.value;
-                    return DropdownMenuItem(
-                        key: Key(
-                            'cliente_edit_${c.id}_$index'), // Key único con índice
-                        value: c,
-                        child: Text(c.nombre));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null)
-                      setState(() => _ordenEditable.cliente = val);
+                  itemAsString: (Cliente cliente) => cliente.nombre,
+                  onChanged: (Cliente? newValue) {
+                    if (newValue != null) {
+                      setState(() => _ordenEditable.cliente = newValue);
+                    }
                   },
+                  validator: (value) => value == null ? 'Seleccione un cliente' : null,
+                  decoratorProps: DropDownDecoratorProps(
+                    decoration: InputDecoration(
+                      labelText: 'Cliente',
+                      prefixIcon: Icon(
+                        Icons.person_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      hintText: 'Buscar cliente...',
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      labelStyle: UIUtils.getSubtitleStyle(context),
+                      hintStyle: UIUtils.getSubtitleStyle(context),
+                      floatingLabelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  popupProps: PopupProps.menu(
+                    showSearchBox: true,
+                    searchFieldProps: const TextFieldProps(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar cliente...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  compareFn: (Cliente cliente1, Cliente cliente2) => cliente1.id == cliente2.id,
                 ),
                 FormSpacing.verticalMedium(),
                 DropdownButtonFormField<String>(

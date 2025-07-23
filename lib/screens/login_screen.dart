@@ -55,6 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
               },
               backgroundColor: theme.chipTheme.backgroundColor,
               labelStyle: theme.chipTheme.labelStyle,
+              side: BorderSide.none,
             ),
           ),
         ],

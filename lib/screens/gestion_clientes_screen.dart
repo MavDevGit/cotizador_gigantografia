@@ -16,7 +16,7 @@ class GestionClientesScreen extends GestionScreen<Cliente> {
 }
 
 class _GestionClientesScreenState extends GestionScreenState<Cliente> {
-  Cliente? _clienteSeleccionado;
+  String _searchText = '';
   
   void _showClienteDialog(BuildContext context, {Cliente? cliente}) {
     showDialog(
@@ -41,11 +41,14 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
     
     // Filtrar clientes únicos manualmente
     final uniqueClientes = <String, Cliente>{};
-    final clientesToShow = showArchived ? appState.clientesArchivados : appState.clientes;
-    for (var cliente in clientesToShow) {
+    final allClientes = showArchived ? appState.clientesArchivados : appState.clientes;
+    for (var cliente in allClientes) {
       uniqueClientes[cliente.id] = cliente;
     }
     final clientesUnicos = uniqueClientes.values.toList();
+    final clientesToShow = _searchText.isEmpty
+        ? clientesUnicos
+        : clientesUnicos.where((c) => c.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -62,146 +65,49 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
       ),
       body: Column(
         children: [
-          // DropdownSearch para buscar clientes
           if (!showArchived && clientesUnicos.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: DropdownSearch<Cliente>(
-                items: (filter, infiniteScrollProps) => clientesUnicos,
-                selectedItem: _clienteSeleccionado,
-                itemAsString: (Cliente cliente) => cliente.nombre,
-                onChanged: _onClienteSelected,
-                decoratorProps: DropDownDecoratorProps(
-                  decoration: InputDecoration(
-                    labelText: 'Buscar Cliente',
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    hintText: 'Buscar cliente por nombre...',
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    labelStyle: UIUtils.getSubtitleStyle(context),
-                    hintStyle: UIUtils.getSubtitleStyle(context),
-                    floatingLabelStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 14,
+              child: TextField(
+                decoration: InputDecoration(
+                  labelText: 'Buscar Cliente',
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  hintText: 'Buscar cliente por nombre...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                ),
-                popupProps: PopupProps.menu(
-                  showSearchBox: true,
-                  searchFieldProps: const TextFieldProps(
-                    decoration: InputDecoration(
-                      hintText: 'Buscar cliente...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                  itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
-                    final theme = Theme.of(context);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? theme.colorScheme.primaryContainer.withOpacity(0.1)
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          UIUtils.buildThemedIcon(
-                            icon: Icons.person_rounded,
-                            context: context,
-                            isSelected: isSelected,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cliente.nombre,
-                                  style: UIUtils.getTitleStyle(
-                                    context,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? theme.colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                                Text(
-                                  'Contacto: ${cliente.contacto}',
-                                  style: UIUtils.getSubtitleStyle(context).copyWith(
-                                    fontSize: 12,
-                                    color: isSelected
-                                        ? theme.colorScheme.primary.withOpacity(0.8)
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  emptyBuilder: (context, searchEntry) {
-                    final theme = Theme.of(context);
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.search_off_rounded,
-                            size: 48,
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No se encontraron clientes',
-                            style: UIUtils.getTitleStyle(context).copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (searchEntry.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'para "$searchEntry"',
-                              style: UIUtils.getSubtitleStyle(context),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  labelStyle: UIUtils.getSubtitleStyle(context),
+                  hintStyle: UIUtils.getSubtitleStyle(context),
+                  floatingLabelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                  ),
                 ),
-                compareFn: (Cliente cliente1, Cliente cliente2) =>
-                    cliente1.id == cliente2.id,
+                onChanged: (value) => setState(() => _searchText = value),
               ),
             ),
           

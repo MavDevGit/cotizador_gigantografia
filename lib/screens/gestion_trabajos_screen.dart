@@ -64,7 +64,7 @@ class GestionTrabajosScreen extends GestionScreen<Trabajo> {
 }
 
 class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
-  Trabajo? _trabajoSeleccionado;
+  String _searchText = '';
   
   void _showTrabajoDialog(BuildContext context, {Trabajo? trabajo}) {
     showDialog(
@@ -96,15 +96,16 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     
-    // Filtrar trabajos únicos manualmente para el dropdown
+    // Filtrar trabajos únicos manualmente
     final uniqueTrabajos = <String, Trabajo>{};
-    final trabajosToShow = showArchived ? appState.trabajosArchivados : appState.trabajos;
-    final trabajosParaDropdown = showArchived ? appState.trabajosArchivados : appState.trabajos;
-    
-    for (var trabajo in trabajosParaDropdown) {
+    final allTrabajos = showArchived ? appState.trabajosArchivados : appState.trabajos;
+    for (var trabajo in allTrabajos) {
       uniqueTrabajos[trabajo.id] = trabajo;
     }
     final trabajosUnicos = uniqueTrabajos.values.toList();
+    final trabajosToShow = _searchText.isEmpty
+        ? trabajosUnicos
+        : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -129,146 +130,49 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
       ),
       body: Column(
         children: [
-          // DropdownSearch para buscar trabajos
           if (!showArchived && trabajosUnicos.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: DropdownSearch<Trabajo>(
-                items: (filter, infiniteScrollProps) => trabajosUnicos,
-                selectedItem: _trabajoSeleccionado,
-                itemAsString: (Trabajo trabajo) => trabajo.nombre,
-                onChanged: _onTrabajoSelected,
-                decoratorProps: DropDownDecoratorProps(
-                  decoration: InputDecoration(
-                    labelText: 'Buscar Trabajo',
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    hintText: 'Buscar trabajo por nombre...',
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    labelStyle: UIUtils.getSubtitleStyle(context),
-                    hintStyle: UIUtils.getSubtitleStyle(context),
-                    floatingLabelStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 14,
+              child: TextField(
+                decoration: InputDecoration(
+                  labelText: 'Buscar Trabajo',
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  hintText: 'Buscar trabajo por nombre...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                ),
-                popupProps: PopupProps.menu(
-                  showSearchBox: true,
-                  searchFieldProps: const TextFieldProps(
-                    decoration: InputDecoration(
-                      hintText: 'Buscar trabajo...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                  itemBuilder: (context, Trabajo trabajo, isSelected, isHighlighted) {
-                    final theme = Theme.of(context);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? theme.colorScheme.primaryContainer.withOpacity(0.1)
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          UIUtils.buildThemedIcon(
-                            icon: Icons.work_rounded,
-                            context: context,
-                            isSelected: isSelected,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trabajo.nombre,
-                                  style: UIUtils.getTitleStyle(
-                                    context,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? theme.colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            'Bs ${trabajo.precioM2.toStringAsFixed(2)}/m²',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  emptyBuilder: (context, searchEntry) {
-                    final theme = Theme.of(context);
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.work_off_rounded,
-                            size: 48,
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                          ),
-                          FormSpacing.verticalSmall(),
-                          Text(
-                            'No se encontraron trabajos',
-                            style: UIUtils.getTitleStyle(context).copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (searchEntry.isNotEmpty) ...[
-                            FormSpacing.verticalSmall(),
-                            Text(
-                              'para "$searchEntry"',
-                              style: UIUtils.getSubtitleStyle(context),
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  labelStyle: UIUtils.getSubtitleStyle(context),
+                  hintStyle: UIUtils.getSubtitleStyle(context),
+                  floatingLabelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                  ),
                 ),
-                compareFn: (Trabajo trabajo1, Trabajo trabajo2) =>
-                    trabajo1.id == trabajo2.id,
+                onChanged: (value) => setState(() => _searchText = value),
               ),
             ),
           
