@@ -740,7 +740,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
         child: Column(
           children: [
             _financialRow(
-                'Total Bruto:', '\$${_ordenEditable.totalBruto.toStringAsFixed(2)}'),
+                'Total Bruto:', 'Bs ${_ordenEditable.totalBruto.toStringAsFixed(2)}'),
             FormSpacing.verticalMedium(),
             TextFormField(
               controller: _totalPersonalizadoController,
@@ -761,10 +761,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             ),
             FormSpacing.verticalSmall(),
             _financialRow('Rebaja:',
-                '\$${_ordenEditable.rebaja > 0 ? _ordenEditable.rebaja.toStringAsFixed(2) : '0.00'}'),
+                'Bs ${_ordenEditable.rebaja > 0 ? _ordenEditable.rebaja.toStringAsFixed(2) : '0.00'}'),
             const Divider(height: 24),
             _financialRow(
-                'Total Final:', '\$${_ordenEditable.total.toStringAsFixed(2)}',
+                'Total Final:', 'Bs ${_ordenEditable.total.toStringAsFixed(2)}',
                 isTotal: true),
             FormSpacing.verticalMedium(),
             TextFormField(
@@ -785,7 +785,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             ),
             FormSpacing.verticalSmall(),
             _financialRow('Saldo Pendiente:',
-                '\$${_ordenEditable.saldo.toStringAsFixed(2)}',
+                'Bs ${_ordenEditable.saldo.toStringAsFixed(2)}',
                 isTotal: true),
           ],
         ),

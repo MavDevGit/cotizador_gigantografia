@@ -1,4 +1,3 @@
-
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
+import '../utils/utils.dart';
 
 class UsuarioFormDialog extends StatefulWidget {
   final Usuario? usuario;
@@ -15,12 +15,14 @@ class UsuarioFormDialog extends StatefulWidget {
   _UsuarioFormDialogState createState() => _UsuarioFormDialogState();
 }
 
+
 class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late String _nombre;
   late String _email;
   late String _rol;
   late String _password;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -36,24 +38,31 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
       _formKey.currentState!.save();
       final appState = Provider.of<AppState>(context, listen: false);
       String passwordToSave = _password;
+
       // Si estamos editando y el campo de contraseña está vacío, conservar la anterior
       if (widget.usuario != null && (_password.isEmpty || _password.trim().isEmpty)) {
         passwordToSave = widget.usuario!.password;
       }
-      final newUsuario = Usuario(
-        id: widget.usuario?.id ?? Random().nextDouble().toString(),
-        nombre: _nombre,
-        email: _email,
-        rol: _rol,
-        password: passwordToSave, // Solo cambia si se ingresó una nueva
-        negocioId: appState.currentUser!.negocioId,
-        creadoEn: widget.usuario?.creadoEn ?? DateTime.now(),
-      );
 
       if (widget.usuario == null) {
+        // Crear nuevo usuario
+        final newUsuario = Usuario(
+          id: Random().nextDouble().toString(),
+          nombre: _nombre,
+          email: _email,
+          rol: _rol,
+          password: passwordToSave,
+          negocioId: appState.currentUser!.negocioId,
+          creadoEn: DateTime.now(),
+        );
         appState.addUsuario(newUsuario);
       } else {
-        appState.updateUsuario(newUsuario);
+        // Actualizar usuario existente
+        widget.usuario!.nombre = _nombre;
+        widget.usuario!.email = _email;
+        widget.usuario!.rol = _rol;
+        widget.usuario!.password = passwordToSave;
+        appState.updateUsuario(widget.usuario!);
       }
       Navigator.of(context).pop();
     }
@@ -61,10 +70,18 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final appState = Provider.of<AppState>(context, listen: false);
+    
     return AlertDialog(
-      title:
-          Text(widget.usuario == null ? 'Nuevo Usuario' : 'Editar Usuario'),
+      backgroundColor: theme.colorScheme.surface,
+      title: Text(
+        widget.usuario == null ? 'Nuevo Usuario' : 'Editar Usuario',
+        style: theme.textTheme.headlineSmall?.copyWith(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
       content: Form(
         key: _formKey,
         child: Column(
@@ -74,43 +91,121 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
               initialValue: _nombre,
               decoration: InputDecoration(
                 labelText: 'Nombre',
-                labelStyle: Theme.of(context).textTheme.bodyMedium,
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
               ),
               validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
               onSaved: (v) => _nombre = v!,
             ),
+            FormSpacing.verticalMedium(),
             TextFormField(
               initialValue: _email,
               decoration: InputDecoration(
                 labelText: 'Email (login)',
-                labelStyle: Theme.of(context).textTheme.bodyMedium,
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
               ),
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
               validator: (v) => v!.isEmpty ? 'Email inválido' : null,
               onSaved: (v) => _email = v!,
             ),
+            FormSpacing.verticalMedium(),
             TextFormField(
-              initialValue: _password,
+              initialValue: widget.usuario != null ? '' : _password,
               decoration: InputDecoration(
-                labelText: 'Contraseña',
-                labelStyle: Theme.of(context).textTheme.bodyMedium,
+                labelText: widget.usuario != null ? 'Nueva Contraseña (opcional)' : 'Contraseña',
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                hintText: widget.usuario != null ? 'Dejar vacío para mantener la actual' : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                  tooltip: _obscurePassword ? 'Mostrar contraseña' : 'Ocultar contraseña',
+                ),
               ),
-              validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
-              onSaved: (v) => _password = v!,
-              obscureText: true,
+              validator: (v) {
+                // Solo requerir contraseña para usuarios nuevos
+                if (widget.usuario == null && (v == null || v.isEmpty)) {
+                  return 'Campo requerido';
+                }
+                return null;
+              },
+              onSaved: (v) => _password = v ?? '',
+              obscureText: _obscurePassword,
             ),
+            FormSpacing.verticalMedium(),
             DropdownButtonFormField<String>(
               value: _rol,
               decoration: InputDecoration(
                 labelText: 'Rol',
-                labelStyle: Theme.of(context).textTheme.bodyMedium,
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.outline),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+                ),
+                filled: true,
+                fillColor: theme.colorScheme.surface,
               ),
               items: ['admin', 'empleado'].asMap().entries.map((entry) {
                 int index = entry.key;
                 String rol = entry.value;
                 return DropdownMenuItem<String>(
-                  key: Key('rol_${rol}_$index'), // Key único con índice
+                  key: Key('rol_${rol}_$index'),
                   value: rol,
                   child: Text(rol.toUpperCase()),
                 );
@@ -122,7 +217,7 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
                   });
                 }
               },
-            )
+            ),
           ],
         ),
       ),
@@ -130,7 +225,10 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
         if (widget.usuario != null &&
             widget.usuario!.id != appState.currentUser!.id)
           TextButton(
-            child: Text('Archivar', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
+            child: Text('Archivar'),
             onPressed: () {
               Provider.of<AppState>(context, listen: false)
                   .deleteUsuario(widget.usuario!);
@@ -138,9 +236,25 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
             },
           ),
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar')),
-        ElevatedButton(onPressed: _submit, child: const Text('Guardar')),
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          onPressed: _submit,
+          child: const Text('Guardar'),
+        ),
       ],
     );
   }

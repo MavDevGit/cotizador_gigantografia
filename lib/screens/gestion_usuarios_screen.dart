@@ -37,9 +37,14 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
       uniqueUsuarios[usuario.id] = usuario;
     }
     final usuariosUnicos = uniqueUsuarios.values.toList();
+
+    // Ordenar alfabéticamente por nombre
+    usuariosUnicos.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
     final usuariosToShow = _searchText.isEmpty
         ? usuariosUnicos
-        : usuariosUnicos.where((u) => u.nombre.toLowerCase().contains(_searchText.toLowerCase()) || u.email.toLowerCase().contains(_searchText.toLowerCase())).toList();
+        : usuariosUnicos
+            .where((u) => u.nombre.toLowerCase().contains(_searchText.toLowerCase()) || u.email.toLowerCase().contains(_searchText.toLowerCase()))
+            .toList();
 
     return Scaffold(
       appBar: AppBar(
