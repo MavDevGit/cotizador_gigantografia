@@ -11,7 +11,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     if (appState.currentUser != null) {
-      return const HomeScreen();
+      return const MainScreen();
     } else {
       return const LoginScreen();
     }

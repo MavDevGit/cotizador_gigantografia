@@ -206,6 +206,7 @@ class CotizadorApp extends StatelessWidget {
         foregroundColor: textColor,
         elevation: 0,
         centerTitle: false,
+        titleSpacing: 0,
         shadowColor: Colors.black12,
         titleTextStyle: TextStyle(
           color: textColor,
@@ -335,6 +336,7 @@ class CotizadorApp extends StatelessWidget {
         foregroundColor: textColor,
         elevation: 0,
         centerTitle: false,
+        titleSpacing: 0,
         shadowColor: Colors.black12,
         titleTextStyle: TextStyle(
           color: textColor,
