@@ -35,13 +35,17 @@ class _UsuarioFormDialogState extends State<UsuarioFormDialog> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final appState = Provider.of<AppState>(context, listen: false);
+      String passwordToSave = _password;
+      // Si estamos editando y el campo de contraseña está vacío, conservar la anterior
+      if (widget.usuario != null && (_password.isEmpty || _password.trim().isEmpty)) {
+        passwordToSave = widget.usuario!.password;
+      }
       final newUsuario = Usuario(
         id: widget.usuario?.id ?? Random().nextDouble().toString(),
         nombre: _nombre,
         email: _email,
         rol: _rol,
-        password:
-            _password, // In a real app, this should be handled more securely
+        password: passwordToSave, // Solo cambia si se ingresó una nueva
         negocioId: appState.currentUser!.negocioId,
         creadoEn: widget.usuario?.creadoEn ?? DateTime.now(),
       );

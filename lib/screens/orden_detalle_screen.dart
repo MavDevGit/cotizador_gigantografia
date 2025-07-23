@@ -30,6 +30,13 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     'terminado',
     'entregado'
   ];
+  // Mapeo de estados a texto legible
+  static const Map<String, String> estadoLabels = {
+    'pendiente': 'Pendiente',
+    'en_proceso': 'En proceso',
+    'terminado': 'Terminado',
+    'entregado': 'Entregado',
+  };
   final _formKey = GlobalKey<FormState>();
 
   // Controllers to update TextFields when state changes
@@ -363,7 +370,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                     return DropdownMenuItem(
                         key: Key('estado_${e}_$index'), // Key único con índice
                         value: e,
-                        child: Text(e.toUpperCase()));
+                        child: Text(estadoLabels[e] ?? e));
                   }).toList(),
                   onChanged: (val) {
                     if (val != null) setState(() => _ordenEditable.estado = val);

@@ -131,6 +131,22 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: Icon(
+              Icons.person_outline,
+              color: theme.colorScheme.primary,
+            ),
+            title: Text(
+              'Gestionar Usuarios',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context); // Cierra el drawer
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionUsuariosScreen()));
+            },
+          ),
+          ListTile(
+            leading: Icon(
               Icons.work_outline,
               color: theme.colorScheme.primary,
             ),
