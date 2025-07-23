@@ -25,7 +25,7 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appState = Provider.of<AppState>(context);
@@ -43,6 +43,34 @@ class _MainScreenState extends State<MainScreen> {
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () {
+                  appState.toggleTheme();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    theme.brightness == Brightness.dark 
+                        ? Icons.light_mode 
+                        : Icons.dark_mode,
+                    size: 20,
+                    color: theme.colorScheme.primaryContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       drawer: _buildDrawer(context, appState),
       body: Container(

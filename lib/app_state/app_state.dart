@@ -312,6 +312,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleTheme() async {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        await setThemeMode(ThemeMode.dark);
+        break;
+      case ThemeMode.dark:
+        await setThemeMode(ThemeMode.light);
+        break;
+      case ThemeMode.system:
+        await setThemeMode(ThemeMode.light);
+        break;
+    }
+  }
+
   String getThemeModeString() {
     switch (_themeMode) {
       case ThemeMode.light:
