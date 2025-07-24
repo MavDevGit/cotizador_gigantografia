@@ -13,22 +13,71 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'admin');
-  final _passwordController = TextEditingController(text: 'admin');
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscureText = true;
 
+  void _showCustomSnackBar(String message, {IconData icon = Icons.info_outline, Color? color}) {
+    final theme = Theme.of(context);
+    final textColor = theme.brightness == Brightness.dark
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurface;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: color ?? theme.colorScheme.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: TextStyle(color: textColor))),
+          ],
+        ),
+        backgroundColor: theme.colorScheme.surfaceVariant,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
+        margin: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 20,
+          left: 24,
+          right: 24,
+        ),
+      ),
+    );
+  }
+
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showCustomSnackBar('Completa todos los campos', icon: Icons.warning_amber_rounded, color: Colors.orange);
+      return;
+    }
+    if (!email.contains('@')) {
+      _showCustomSnackBar('El correo debe contener "@"', icon: Icons.email, color: Colors.orange);
+      return;
+    }
+    if (password.length < 6) {
+      _showCustomSnackBar('La contraseña debe tener al menos 6 caracteres', icon: Icons.lock_outline, color: Colors.orange);
+      return;
+    }
+
     setState(() => _isLoading = true);
     final success = await Provider.of<AppState>(context, listen: false)
-        .login(_emailController.text, _passwordController.text);
+        .login(email, password);
 
     if (!mounted) return;
 
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario o contraseña incorrectos.')),
+    if (success) {
+      // Redirigir a la pantalla principal (MainScreen)
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
+    } else {
+      _showCustomSnackBar('Usuario o contraseña incorrectos.', icon: Icons.error, color: Colors.red);
     }
     setState(() => _isLoading = false);
   }
@@ -93,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
+                      hintText: 'Ingresa tu correo',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
@@ -106,6 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     obscureText: _obscureText,
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
+                      hintText: 'Ingresa tu contraseña',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(

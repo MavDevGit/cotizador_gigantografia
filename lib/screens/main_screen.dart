@@ -250,9 +250,13 @@ class _MainScreenState extends State<MainScreen> {
                 color: theme.colorScheme.error,
               ),
             ),
-            onTap: () {
-              appState.logout();
+            onTap: () async {
+              await appState.logout();
               Navigator.pop(context); // Cierra el drawer
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
             },
           ),
         ],

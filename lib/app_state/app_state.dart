@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/services.dart';
+import '../services/supabase_auth_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/utils.dart';
 
 class AppState extends ChangeNotifier {
@@ -57,27 +59,27 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> login(String email, String password) async {
-    final user = _usuariosBox.values.firstWhere(
-      (u) => u.email == email && u.eliminadoEn == null,
-      orElse: () => Usuario(
-          id: '',
-          email: '',
-          nombre: '',
-          rol: '',
-          negocioId: '',
-          creadoEn: DateTime.now(),
-          password: ''), // Return a dummy user
-    );
-
-    if (user.id.isNotEmpty && user.password == password) {
-      _currentUser = user;
-      notifyListeners();
-      return true;
+    // Autenticación con Supabase
+    try {
+      final supabaseAuth = SupabaseAuthService();
+      final response = await supabaseAuth.signInWithEmail(email, password);
+      final session = response.session;
+      if (session != null && response.user != null) {
+        // Aquí podrías cargar datos adicionales del usuario si lo deseas
+        // _currentUser = ...
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
-    return false;
   }
 
-  void logout() {
+  Future<void> logout() async {
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
     _currentUser = null;
     notifyListeners();
   }

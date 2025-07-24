@@ -16,49 +16,34 @@ class SignupScreen extends StatefulWidget {
 
 
 class _SignupScreenState extends State<SignupScreen> {
-  void _showOverlayMessage(String message, {IconData icon = Icons.info_outline, Color? color}) {
+  void _showCustomSnackBar(String message, {IconData icon = Icons.info_outline, Color? color}) {
     final theme = Theme.of(context);
-    final overlay = Overlay.of(context);
     final textColor = theme.brightness == Brightness.dark
         ? theme.colorScheme.onSurface
         : theme.colorScheme.onSurface;
-    final entry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: MediaQuery.of(context).padding.top + 20,
-        left: 24,
-        right: 24,
-        child: Material(
-          color: Colors.transparent,
-          child: AnimatedOpacity(
-            opacity: 1,
-            duration: const Duration(milliseconds: 300),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(icon, color: color ?? theme.colorScheme.primary, size: 22),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(message, style: TextStyle(color: textColor))),
-                ],
-              ),
-            ),
-          ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: color ?? theme.colorScheme.primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: TextStyle(color: textColor))),
+          ],
+        ),
+        backgroundColor: theme.colorScheme.surfaceVariant,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
+        margin: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 20,
+          left: 24,
+          right: 24,
         ),
       ),
     );
-    overlay.insert(entry);
-    Future.delayed(const Duration(seconds: 3), () => entry.remove());
   }
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -76,11 +61,19 @@ class _SignupScreenState extends State<SignupScreen> {
     final nombre = email.split('@').first;
 
     if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || company.isEmpty) {
-      _showOverlayMessage('Completa todos los campos', icon: Icons.warning_amber_rounded, color: Colors.orange);
+      _showCustomSnackBar('Completa todos los campos', icon: Icons.warning_amber_rounded, color: Colors.orange);
+      return;
+    }
+    if (!email.contains('@')) {
+      _showCustomSnackBar('El correo debe contener "@"', icon: Icons.email, color: Colors.orange);
+      return;
+    }
+    if (password.length < 6 || confirmPassword.length < 6) {
+      _showCustomSnackBar('La contraseña debe tener al menos 6 caracteres', icon: Icons.lock_outline, color: Colors.orange);
       return;
     }
     if (password != confirmPassword) {
-      _showOverlayMessage('Las contraseñas no coinciden', icon: Icons.lock_person_rounded, color: Colors.redAccent);
+      _showCustomSnackBar('Las contraseñas no coinciden', icon: Icons.lock_person_rounded, color: Colors.redAccent);
       return;
     }
 
@@ -108,10 +101,10 @@ class _SignupScreenState extends State<SignupScreen> {
         );
         Navigator.of(context).pop();
       } else {
-        _showOverlayMessage('Error al registrar. Intenta de nuevo.', icon: Icons.error, color: Colors.red);
+        _showCustomSnackBar('Error al registrar. Intenta de nuevo.', icon: Icons.error, color: Colors.red);
       }
     } catch (e) {
-      _showOverlayMessage('Error: ${e.toString()}', icon: Icons.error, color: Colors.red);
+      _showCustomSnackBar('Error: ${e.toString()}', icon: Icons.error, color: Colors.red);
     }
     setState(() => _isLoading = false);
   }
@@ -138,6 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
               },
               backgroundColor: theme.chipTheme.backgroundColor,
               labelStyle: theme.chipTheme.labelStyle,
+              side: BorderSide.none,
             ),
           ),
         ],
