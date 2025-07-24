@@ -18,6 +18,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _companyController = TextEditingController();
   bool _obscureText = true;
   bool _obscureConfirmText = true;
   bool _agreedToTerms = false;
@@ -157,6 +158,18 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       keyboardType: TextInputType.visiblePassword,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Company Field
+                    TextField(
+                      controller: _companyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Empresa',
+                        prefixIcon: Icon(Icons.business_outlined),
+                      ),
+                      keyboardType: TextInputType.text,
+                      autofillHints: const [AutofillHints.organizationName],
                     ),
                     const SizedBox(height: 24),
 
