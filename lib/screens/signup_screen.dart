@@ -1,10 +1,8 @@
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
 import '../app_state/app_state.dart';
-
-import 'screens.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,31 +11,81 @@ class SignupScreen extends StatefulWidget {
   _SignupScreenState createState() => _SignupScreenState();
 }
 
+
 class _SignupScreenState extends State<SignupScreen> {
-  final _nameController = TextEditingController();
+  void _showOverlayMessage(String message, {IconData icon = Icons.info_outline, Color? color}) {
+    final theme = Theme.of(context);
+    final overlay = Overlay.of(context);
+    final textColor = theme.brightness == Brightness.dark
+        ? theme.colorScheme.onSurface
+        : theme.colorScheme.onSurface;
+    final entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 20,
+        left: 24,
+        right: 24,
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedOpacity(
+            opacity: 1,
+            duration: const Duration(milliseconds: 300),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(icon, color: color ?? theme.colorScheme.primary, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(message, style: TextStyle(color: textColor))),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(seconds: 3), () => entry.remove());
+  }
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _companyController = TextEditingController();
   bool _obscureText = true;
   bool _obscureConfirmText = true;
-  bool _agreedToTerms = false;
   bool _isLoading = false;
 
   Future<void> _signup() async {
-    if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes aceptar los términos y condiciones')),
-      );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+    final company = _companyController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || company.isEmpty) {
+      _showOverlayMessage('Completa todos los campos', icon: Icons.warning_amber_rounded, color: Colors.orange);
       return;
     }
-    
+    if (password != confirmPassword) {
+      _showOverlayMessage('Las contraseñas no coinciden', icon: Icons.lock_person_rounded, color: Colors.redAccent);
+      return;
+    }
+
     setState(() => _isLoading = true);
     // Simular registro
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Cuenta creada exitosamente')),
     );
@@ -67,22 +115,21 @@ class _SignupScreenState extends State<SignupScreen> {
               },
               backgroundColor: theme.chipTheme.backgroundColor,
               labelStyle: theme.chipTheme.labelStyle,
-              side: BorderSide.none,
             ),
           ),
         ],
       ),
       body: SafeArea(
         child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: isTablet ? 450 : 400),
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SingleChildScrollView(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isTablet ? 450 : 400, minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header
                     Text(
                       'Crear Cuenta',
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -100,19 +147,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Name Field
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre completo',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      keyboardType: TextInputType.name,
-                      autofillHints: const [AutofillHints.name],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Email Field
                     TextField(
                       controller: _emailController,
                       decoration: const InputDecoration(
@@ -121,10 +155,10 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
+                      textInputAction: TextInputAction.next,
                     ),
                     const SizedBox(height: 16),
 
-                    // Password Field
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscureText,
@@ -140,10 +174,10 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       keyboardType: TextInputType.visiblePassword,
                       autofillHints: const [AutofillHints.newPassword],
+                      textInputAction: TextInputAction.next,
                     ),
                     const SizedBox(height: 16),
 
-                    // Confirm Password Field
                     TextField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmText,
@@ -158,10 +192,10 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                       keyboardType: TextInputType.visiblePassword,
+                      textInputAction: TextInputAction.next,
                     ),
                     const SizedBox(height: 16),
 
-                    // Company Field
                     TextField(
                       controller: _companyController,
                       decoration: const InputDecoration(
@@ -170,34 +204,10 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       keyboardType: TextInputType.text,
                       autofillHints: const [AutofillHints.organizationName],
+                      textInputAction: TextInputAction.done,
                     ),
                     const SizedBox(height: 24),
 
-                    // Terms and Conditions
-                    CheckboxListTile(
-                      value: _agreedToTerms,
-                      onChanged: (value) => setState(() => _agreedToTerms = value ?? false),
-                      title: Text.rich(
-                        TextSpan(
-                          text: 'Acepto los ',
-                          style: theme.textTheme.bodyMedium,
-                          children: [
-                            TextSpan(
-                              text: 'términos y condiciones',
-                              style: TextStyle(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Signup Button
                     FilledButton(
                       onPressed: _isLoading ? null : _signup,
                       child: _isLoading
@@ -210,7 +220,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Divider
                     const Row(
                       children: [
                         Expanded(child: Divider()),
@@ -223,7 +232,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Social Login Buttons
                     Row(
                       children: [
                         Expanded(
@@ -251,7 +259,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Login Link
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
                       child: RichText(

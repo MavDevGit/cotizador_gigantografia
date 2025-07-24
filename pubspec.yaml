@@ -54,6 +54,9 @@ dependencies:
   
   # Utilidades adicionales
   url_launcher: ^6.2.2
+
+  # Maneja el enlace de confirmación de registros en Flutter
+  uni_links: ^0.5.1
   
   # Sistema de notificaciones locales
   flutter_local_notifications: ^17.2.3
@@ -62,6 +65,7 @@ dependencies:
   font_awesome_flutter: ^10.8.0
   icons_plus: ^5.0.0
   dropdown_search: ^6.0.2
+  supabase_flutter: ^2.9.1
 
 # Dependencias de desarrollo (solo para compilación y testing)
 dev_dependencies:

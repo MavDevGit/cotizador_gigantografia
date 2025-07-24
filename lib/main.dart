@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uni_links/uni_links.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -11,8 +12,16 @@ import 'models/models.dart';
 import 'screens/screens.dart';
 import 'services/services.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar Supabase
+  await Supabase.initialize(
+    url: 'https://umyxvmnnnqhejzpdzcgc.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVteXh2bW5ubnFoZWp6cGR6Y2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNjk3MzUsImV4cCI6MjA2ODk0NTczNX0.rNvdbFz02Bq-VUkQy0VqWtaHPx4xi4pR8BIW4_OAn_s',
+  );
 
   // Inicializar timezone
   tz.initializeTimeZones();
@@ -150,8 +159,44 @@ String _getTimezoneFromOffset(Duration offset) {
   }
 }
 
-class CotizadorApp extends StatelessWidget {
+class CotizadorApp extends StatefulWidget {
   const CotizadorApp({super.key});
+
+  @override
+  State<CotizadorApp> createState() => _CotizadorAppState();
+}
+
+class _CotizadorAppState extends State<CotizadorApp> {
+  @override
+  void initState() {
+    super.initState();
+    _handleIncomingLinks();
+  }
+
+  void _handleIncomingLinks() {
+    uriLinkStream.listen((Uri? uri) {
+      if (uri != null && uri.scheme == 'cotizador' && uri.host == 'auth') {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+          // Mostrar aviso después de navegar
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('¡Cuenta confirmada! Ya puedes iniciar sesión.'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+          });
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
