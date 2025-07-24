@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:uni_links/uni_links.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -12,7 +11,12 @@ import 'models/models.dart';
 import 'screens/screens.dart';
 import 'services/services.dart';
 
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app_links/app_links.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
+import 'services/supabase_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -167,35 +171,102 @@ class CotizadorApp extends StatefulWidget {
 }
 
 class _CotizadorAppState extends State<CotizadorApp> {
+  late final AppLinks _appLinks;
   @override
   void initState() {
     super.initState();
-    _handleIncomingLinks();
+    _appLinks = AppLinks();
+    _appLinks.uriLinkStream.listen(_handleIncomingLink);
   }
 
-  void _handleIncomingLinks() {
-    uriLinkStream.listen((Uri? uri) {
-      if (uri != null && uri.scheme == 'cotizador' && uri.host == 'auth') {
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
+  Future<void> _handleIncomingLink(Uri? uri) async {
+    if (uri == null) return;
+    debugPrint('🔗 Deep link recibido: $uri');
+    if (uri.host == 'auth' && uri.path.contains('callback')) {
+      final code = uri.queryParameters['code'];
+      final error = uri.queryParameters['error'];
+      final errorDescription = uri.queryParameters['error_description'];
+      debugPrint('� code: $code, error: $error, error_description: $errorDescription');
+      if (error != null) {
+        debugPrint('❌ Error en deep link: $error - $errorDescription');
+        if (mounted && ScaffoldMessenger.maybeOf(context) != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $errorDescription'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
-          // Mostrar aviso después de navegar
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('¡Cuenta confirmada! Ya puedes iniciar sesión.'),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 4),
-                ),
-              );
+        }
+        return;
+      }
+      if (code != null) {
+        try {
+          final client = Supabase.instance.client;
+          final sessionResponse = await client.auth.exchangeCodeForSession(code);
+          final user = sessionResponse.session?.user;
+          debugPrint('👤 Usuario recuperado tras exchange: ${user?.id}');
+          if (user != null) {
+            final prefs = await SharedPreferences.getInstance();
+            final empresa = prefs.getString('pending_empresa');
+            final email = prefs.getString('pending_email');
+            debugPrint('🏢 Empresa: $empresa, Email: $email');
+            if (empresa != null && email != null) {
+              final supabaseService = SupabaseService();
+              final empresaId = await supabaseService.createEmpresa(empresa);
+              debugPrint('🏢 Empresa creada con ID: $empresaId');
+              if (empresaId != null) {
+                final ok = await supabaseService.createUsuario(
+                  email: email,
+                  empresaId: empresaId,
+                  authUserId: user.id,
+                );
+                debugPrint('👤 Usuario insertado en tabla usuarios: $ok');
+                if (ok) {
+                  prefs.remove('pending_empresa');
+                  prefs.remove('pending_nombre');
+                  prefs.remove('pending_email');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('¡Correo confirmado! Ahora puedes iniciar sesión.'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const AuthWrapper()),
+                      (route) => false,
+                    );
+                  }
+                  return;
+                } else {
+                  debugPrint('❌ Error al crear usuario en tabla usuarios');
+                }
+              } else {
+                debugPrint('❌ Error al crear empresa en tabla empresas');
+              }
+            } else {
+              debugPrint('❌ Datos temporales de registro no encontrados');
             }
-          });
+          } else {
+            debugPrint('❌ Usuario no recuperado tras exchangeCodeForSession');
+          }
+        } catch (e, st) {
+          debugPrint('❌ Error en el flujo de confirmación: $e\n$st');
+        }
+        // Siempre mostrar un mensaje al usuario
+        if (mounted && ScaffoldMessenger.maybeOf(context) != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('No se pudo completar el registro. Intenta iniciar sesión o registrarte de nuevo.'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
-    });
+    }
   }
 
   @override

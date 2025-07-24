@@ -1,7 +1,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
+
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../app_state/app_state.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -70,6 +73,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
     final company = _companyController.text.trim();
+    final nombre = email.split('@').first;
 
     if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || company.isEmpty) {
       _showOverlayMessage('Completa todos los campos', icon: Icons.warning_amber_rounded, color: Colors.orange);
@@ -81,15 +85,34 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     setState(() => _isLoading = true);
-    // Simular registro
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cuenta creada exitosamente')),
-    );
-    Navigator.of(context).pop();
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: 'cotizador://auth/callback',
+      );
+      if (response.user != null) {
+        // Guardar datos temporales para usarlos tras la confirmación
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_empresa', company);
+        await prefs.setString('pending_nombre', nombre);
+        await prefs.setString('pending_email', email);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Revisa tu correo para confirmar el registro.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.of(context).pop();
+      } else {
+        _showOverlayMessage('Error al registrar. Intenta de nuevo.', icon: Icons.error, color: Colors.red);
+      }
+    } catch (e) {
+      _showOverlayMessage('Error: ${e.toString()}', icon: Icons.error, color: Colors.red);
+    }
     setState(() => _isLoading = false);
   }
 
