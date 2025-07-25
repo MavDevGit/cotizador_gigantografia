@@ -103,28 +103,22 @@ class AppState extends ChangeNotifier {
       final supabaseAuth = SupabaseAuthService();
       final response = await supabaseAuth.signInWithEmail(email, password);
       final session = response.session;
-      final user = response.user;
-      
-      if (session != null && user != null) {
-        print('🔐 Login exitoso para: ${user.email}');
-        
-        // MODIFICADO: Ahora sí guardamos el usuario en _currentUser
+      if (session != null && response.user != null) {
+        // Crear un usuario temporal para mantener la sesión
         _currentUser = Usuario(
-          id: user.id,
-          email: user.email ?? '',
-          password: '', // No guardamos la contraseña
-          nombre: user.userMetadata?['nombre'] ?? user.email?.split('@')[0] ?? 'Usuario',
+          id: response.user!.id,
+          email: response.user!.email ?? email,
+          password: '', // No almacenar la contraseña
+          nombre: response.user!.email?.split('@').first ?? 'Usuario',
           rol: 'user',
-          negocioId: 'default_negocio',
+          negocioId: 'supabase_user',
           creadoEn: DateTime.now(),
         );
-        
         notifyListeners();
         return true;
       }
       return false;
     } catch (e) {
-      print('❌ Error en login: $e');
       return false;
     }
   }
@@ -132,14 +126,9 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     try {
       await Supabase.instance.client.auth.signOut();
-      print('👋 Sesión cerrada exitosamente');
-    } catch (e) {
-      print('⚠️ Error al cerrar sesión: $e');
-    } finally {
-      _currentUser = null;
-      _sessionCheckCompleted = false; // Reset para próximo uso
-      notifyListeners();
-    }
+    } catch (_) {}
+    _currentUser = null;
+    notifyListeners();
   }
 
   // --- Getters now read from Hive boxes ---

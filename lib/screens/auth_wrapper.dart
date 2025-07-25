@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app_state/app_state.dart';
 import 'screens.dart';
@@ -10,25 +11,23 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+    final supabaseSession = Supabase.instance.client.auth.currentSession;
     
-    // MODIFICADO: Mostrar loading mientras se verifica la sesión
-    if (!appState.sessionCheckCompleted) {
+    // Si hay sesión de Supabase pero no hay currentUser, crear uno temporal
+    if (supabaseSession != null && appState.currentUser == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Esto se ejecutará después del build actual
+        appState.login(supabaseSession.user.email ?? '', '');
+      });
+      // Mostrar loading mientras se procesa
       return const Scaffold(
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Verificando sesión...'),
-            ],
-          ),
+          child: CircularProgressIndicator(),
         ),
       );
     }
     
-    // Una vez completada la verificación, decidir qué mostrar
-    if (appState.currentUser != null) {
+    if (appState.currentUser != null || supabaseSession != null) {
       return const MainScreen();
     } else {
       return const LoginScreen();
