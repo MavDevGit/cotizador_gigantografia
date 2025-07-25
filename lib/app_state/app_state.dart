@@ -28,6 +28,10 @@ class AppState extends ChangeNotifier {
   // Lista para mantener el orden personalizado de trabajos
   List<String> _ordenPersonalizadoTrabajosIds = [];
 
+  // NUEVO: Verificar si ya se intentó restaurar la sesión
+  bool _sessionCheckCompleted = false;
+  bool get sessionCheckCompleted => _sessionCheckCompleted;
+
   AppState() {
     // Initialization is now async and happens in main()
   }
@@ -40,7 +44,42 @@ class AppState extends ChangeNotifier {
 
     await _createDefaultAdminUser();
     await _loadThemePreference();
+    
+    // NUEVO: Verificar si hay una sesión activa
+    await _checkExistingSession();
+    
     notifyListeners();
+  }
+
+  // NUEVO MÉTODO: Verificar sesión existente
+  Future<void> _checkExistingSession() async {
+    try {
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && session.user != null) {
+        print('📱 Sesión existente encontrada para: ${session.user!.email}');
+        
+        // Crear un usuario temporal con los datos de la sesión
+        _currentUser = Usuario(
+          id: session.user!.id,
+          email: session.user!.email ?? '',
+          password: '', // No necesitamos la contraseña para sesiones existentes
+          nombre: session.user!.userMetadata?['nombre'] ?? session.user!.email?.split('@')[0] ?? 'Usuario',
+          rol: 'user', // Rol por defecto
+          negocioId: 'default_negocio',
+          creadoEn: DateTime.now(),
+        );
+        
+        print('✅ Sesión restaurada exitosamente');
+      } else {
+        print('❌ No hay sesión activa');
+        _currentUser = null;
+      }
+    } catch (e) {
+      print('⚠️ Error al verificar sesión existente: $e');
+      _currentUser = null;
+    } finally {
+      _sessionCheckCompleted = true;
+    }
   }
 
   Future<void> _createDefaultAdminUser() async {
@@ -64,14 +103,28 @@ class AppState extends ChangeNotifier {
       final supabaseAuth = SupabaseAuthService();
       final response = await supabaseAuth.signInWithEmail(email, password);
       final session = response.session;
-      if (session != null && response.user != null) {
-        // Aquí podrías cargar datos adicionales del usuario si lo deseas
-        // _currentUser = ...
+      final user = response.user;
+      
+      if (session != null && user != null) {
+        print('🔐 Login exitoso para: ${user.email}');
+        
+        // MODIFICADO: Ahora sí guardamos el usuario en _currentUser
+        _currentUser = Usuario(
+          id: user.id,
+          email: user.email ?? '',
+          password: '', // No guardamos la contraseña
+          nombre: user.userMetadata?['nombre'] ?? user.email?.split('@')[0] ?? 'Usuario',
+          rol: 'user',
+          negocioId: 'default_negocio',
+          creadoEn: DateTime.now(),
+        );
+        
         notifyListeners();
         return true;
       }
       return false;
     } catch (e) {
+      print('❌ Error en login: $e');
       return false;
     }
   }
@@ -79,9 +132,14 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     try {
       await Supabase.instance.client.auth.signOut();
-    } catch (_) {}
-    _currentUser = null;
-    notifyListeners();
+      print('👋 Sesión cerrada exitosamente');
+    } catch (e) {
+      print('⚠️ Error al cerrar sesión: $e');
+    } finally {
+      _currentUser = null;
+      _sessionCheckCompleted = false; // Reset para próximo uso
+      notifyListeners();
+    }
   }
 
   // --- Getters now read from Hive boxes ---

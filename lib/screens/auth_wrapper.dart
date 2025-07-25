@@ -10,6 +10,24 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+    
+    // MODIFICADO: Mostrar loading mientras se verifica la sesión
+    if (!appState.sessionCheckCompleted) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Verificando sesión...'),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // Una vez completada la verificación, decidir qué mostrar
     if (appState.currentUser != null) {
       return const MainScreen();
     } else {

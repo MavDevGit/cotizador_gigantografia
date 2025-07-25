@@ -57,6 +57,29 @@ Future<void> main() async {
   final appState = AppState();
   await appState.init();
 
+  // NUEVO: Configurar listener para cambios de autenticación
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    final session = data.session;
+    final user = session?.user;
+    
+    print('🔄 Cambio de estado de auth: ${data.event}');
+    
+    if (session == null || user == null) {
+      // Sesión cerrada o expirada
+      print('❌ Sesión cerrada/expirada');
+      if (appState.currentUser != null) {
+        appState.logout(); // Esto limpiará _currentUser y notificará
+      }
+    } else {
+      // Nueva sesión o sesión renovada
+      print('✅ Sesión activa detectada');
+      // Solo actualizar si no hay usuario actual o si cambió el usuario
+      if (appState.currentUser == null || appState.currentUser!.id != user.id) {
+        // Esto se manejará por el AppState internamente
+      }
+    }
+  });
+
   runApp(
     ChangeNotifierProvider.value(
       value: appState,
