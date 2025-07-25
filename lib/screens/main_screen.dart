@@ -101,6 +101,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Drawer _buildDrawer(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
+    final isAdmin = appState.currentUser?.rol == 'admin';
     return Drawer(
       backgroundColor: theme.colorScheme.surface,
       child: ListView(
@@ -157,22 +158,23 @@ class _MainScreenState extends State<MainScreen> {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionClientesScreen()));
             },
           ),
-          ListTile(
-            leading: Icon(
-              Icons.person_outline,
-              color: theme.colorScheme.primary,
-            ),
-            title: Text(
-              'Gestionar Usuarios',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
+          if (isAdmin)
+            ListTile(
+              leading: Icon(
+                Icons.person_outline,
+                color: theme.colorScheme.primary,
               ),
+              title: Text(
+                'Gestionar Usuarios',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context); // Cierra el drawer
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionUsuariosScreen()));
+              },
             ),
-            onTap: () {
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionUsuariosScreen()));
-            },
-          ),
           ListTile(
             leading: Icon(
               Icons.work_outline,

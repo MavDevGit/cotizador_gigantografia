@@ -18,25 +18,38 @@ import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/supabase_service.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializar Supabase
+  // Inicializar Supabase (crítico)
   await Supabase.initialize(
     url: 'https://umyxvmnnnqhejzpdzcgc.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVteXh2bW5ubnFoZWp6cGR6Y2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNjk3MzUsImV4cCI6MjA2ODk0NTczNX0.rNvdbFz02Bq-VUkQy0VqWtaHPx4xi4pR8BIW4_OAn_s',
   );
 
-  // Inicializar timezone
-  tz.initializeTimeZones();
+  // Crear AppState básico
+  final appState = AppState();
+
+  // Ejecutar la app INMEDIATAMENTE
+  runApp(
+    ChangeNotifierProvider.value(
+      value: appState,
+      child: const CotizadorApp(),
+    ),
+  );
+
+  // Inicializar todo lo demás después del runApp
+  _initializeEverythingElse(appState);
+}
+
+// Inicializar todo lo demás después del runApp
+Future<void> _initializeEverythingElse(AppState appState) async {
+  print('🚀 Iniciando inicialización completa...');
   
-  // Configurar timezone local del dispositivo
-  await _initializeTimezone();
-
-  await initializeDateFormatting('es_ES', null);
-
+  // Inicializar Hive
   await Hive.initFlutter();
-
   Hive.registerAdapter(TrabajoAdapter());
   Hive.registerAdapter(ClienteAdapter());
   Hive.registerAdapter(UsuarioAdapter());
@@ -46,18 +59,44 @@ Future<void> main() async {
   Hive.registerAdapter(ArchivoAdjuntoAdapter());
   Hive.registerAdapter(TimeOfDayAdapter());
 
+  // Abrir boxes
   await Hive.openBox<Trabajo>('trabajos');
   await Hive.openBox<Cliente>('clientes');
   await Hive.openBox<Usuario>('usuarios');
   await Hive.openBox<OrdenTrabajo>('ordenes');
 
-  // Inicializar sistema de notificaciones
-  await NotificationService.initialize();
-
-  final appState = AppState();
+  // Inicializar AppState
   await appState.init();
 
-  // NUEVO: Configurar listener para cambios de autenticación
+  // Configurar listeners de autenticación
+  _setupAuthListeners(appState);
+
+  // Inicializar servicios no críticos
+  await _initializeNonCriticalServices();
+  
+  print('✅ Inicialización completa terminada');
+}
+
+// Configurar listeners de autenticación
+void _setupAuthListeners(AppState appState) {
+  // Manejo global de expiración de sesión
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    final event = data.event;
+    if (event == AuthChangeEvent.signedOut || event == AuthChangeEvent.userDeleted) {
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthWrapper()),
+        (route) => false,
+      );
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.')),
+        );
+      }
+    }
+  });
+
+  // Listener para cambios de autenticación
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     final session = data.session;
     final user = session?.user;
@@ -65,27 +104,27 @@ Future<void> main() async {
     print('🔄 Cambio de estado de auth: ${data.event}');
     
     if (session == null || user == null) {
-      // Sesión cerrada o expirada
       print('❌ Sesión cerrada/expirada');
       if (appState.currentUser != null) {
-        appState.logout(); // Esto limpiará _currentUser y notificará
+        appState.logout();
       }
     } else {
-      // Nueva sesión o sesión renovada
       print('✅ Sesión activa detectada');
-      // Solo actualizar si no hay usuario actual o si cambió el usuario
-      if (appState.currentUser == null || appState.currentUser!.id != user.id) {
-        // Esto se manejará por el AppState internamente
-      }
     }
   });
+}
 
-  runApp(
-    ChangeNotifierProvider.value(
-      value: appState,
-      child: const CotizadorApp(),
-    ),
-  );
+// Inicializar servicios no críticos
+Future<void> _initializeNonCriticalServices() async {
+  // Inicializar timezone
+  tz.initializeTimeZones();
+  await _initializeTimezone();
+
+  // Inicializar formato de fecha
+  await initializeDateFormatting('es_ES', null);
+
+  // Inicializar sistema de notificaciones
+  await NotificationService.initialize();
 }
 
 /// Inicializa el timezone del dispositivo automáticamente
@@ -186,122 +225,20 @@ String _getTimezoneFromOffset(Duration offset) {
   }
 }
 
-class CotizadorApp extends StatefulWidget {
+class CotizadorApp extends StatelessWidget {
   const CotizadorApp({super.key});
-
-  @override
-  State<CotizadorApp> createState() => _CotizadorAppState();
-}
-
-class _CotizadorAppState extends State<CotizadorApp> {
-  late final AppLinks _appLinks;
-  @override
-  void initState() {
-    super.initState();
-    _appLinks = AppLinks();
-    _appLinks.uriLinkStream.listen(_handleIncomingLink);
-  }
-
-  Future<void> _handleIncomingLink(Uri? uri) async {
-    if (uri == null) return;
-    debugPrint('🔗 Deep link recibido: $uri');
-    if (uri.host == 'auth' && uri.path.contains('callback')) {
-      final code = uri.queryParameters['code'];
-      final error = uri.queryParameters['error'];
-      final errorDescription = uri.queryParameters['error_description'];
-      debugPrint('� code: $code, error: $error, error_description: $errorDescription');
-      if (error != null) {
-        debugPrint('❌ Error en deep link: $error - $errorDescription');
-        if (mounted && ScaffoldMessenger.maybeOf(context) != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $errorDescription'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
-      if (code != null) {
-        try {
-          final client = Supabase.instance.client;
-          final sessionResponse = await client.auth.exchangeCodeForSession(code);
-          final user = sessionResponse.session?.user;
-          debugPrint('👤 Usuario recuperado tras exchange: ${user?.id}');
-          if (user != null) {
-            final prefs = await SharedPreferences.getInstance();
-            final empresa = prefs.getString('pending_empresa');
-            final email = prefs.getString('pending_email');
-            debugPrint('🏢 Empresa: $empresa, Email: $email');
-            if (empresa != null && email != null) {
-              final supabaseService = SupabaseService();
-              final empresaId = await supabaseService.createEmpresa(empresa);
-              debugPrint('🏢 Empresa creada con ID: $empresaId');
-              if (empresaId != null) {
-                final ok = await supabaseService.createUsuario(
-                  email: email,
-                  empresaId: empresaId,
-                  authUserId: user.id,
-                );
-                debugPrint('👤 Usuario insertado en tabla usuarios: $ok');
-                if (ok) {
-                  prefs.remove('pending_empresa');
-                  prefs.remove('pending_nombre');
-                  prefs.remove('pending_email');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('¡Correo confirmado! Ahora puedes iniciar sesión.'),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const AuthWrapper()),
-                      (route) => false,
-                    );
-                  }
-                  return;
-                } else {
-                  debugPrint('❌ Error al crear usuario en tabla usuarios');
-                }
-              } else {
-                debugPrint('❌ Error al crear empresa en tabla empresas');
-              }
-            } else {
-              debugPrint('❌ Datos temporales de registro no encontrados');
-            }
-          } else {
-            debugPrint('❌ Usuario no recuperado tras exchangeCodeForSession');
-          }
-        } catch (e, st) {
-          debugPrint('❌ Error en el flujo de confirmación: $e\n$st');
-        }
-        // Siempre mostrar un mensaje al usuario
-        if (mounted && ScaffoldMessenger.maybeOf(context) != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('No se pudo completar el registro. Intenta iniciar sesión o registrarte de nuevo.'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         return MaterialApp(
+          navigatorKey: navigatorKey,
           title: 'Cotizador Pro',
           theme: _buildLightTheme(),
           darkTheme: _buildDarkTheme(),
           themeMode: appState.themeMode,
-          home: const AuthWrapper(),
+          home: const SplashScreen(), // Usar SplashScreen en lugar de AuthWrapper
           debugShowCheckedModeBanner: false,
           localizationsDelegates: const [
             GlobalMaterialLocalizations.delegate,

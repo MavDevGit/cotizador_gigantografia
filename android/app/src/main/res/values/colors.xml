@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores de la app Cotizador Pro -->
+    <color name="primary_color">#0AE98A</color>
+    <color name="secondary_color">#1292EE</color>
+    <color name="background_color_light">#FFFFFF</color>
+    <color name="background_color_dark">#13161C</color>
+    <color name="surface_color_light">#F9FAFB</color>
+    <color name="surface_color_dark">#1E2229</color>
+    <color name="text_color_light">#1A1D29</color>
+    <color name="text_color_dark">#FFFFFF</color>
+    
+    <!-- Colores para el splash screen -->
+    <color name="splash_background_light">#FFFFFF</color>
+    <color name="splash_background_dark">#1E2229</color>
+    <color name="splash_icon_color_light">#1A1D29</color>
+    <color name="splash_icon_color_dark">#FFFFFF</color>
+</resources> 

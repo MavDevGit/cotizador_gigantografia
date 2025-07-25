@@ -32,23 +32,34 @@ class AppState extends ChangeNotifier {
   bool _sessionCheckCompleted = false;
   bool get sessionCheckCompleted => _sessionCheckCompleted;
 
+  // NUEVO: Verificar si la inicialización está completa
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
+
   AppState() {
     // Initialization is now async and happens in main()
   }
 
   Future<void> init() async {
-    _clientesBox = Hive.box<Cliente>('clientes');
-    _trabajosBox = Hive.box<Trabajo>('trabajos');
-    _ordenesBox = Hive.box<OrdenTrabajo>('ordenes');
-    _usuariosBox = Hive.box<Usuario>('usuarios');
+    try {
+      _clientesBox = Hive.box<Cliente>('clientes');
+      _trabajosBox = Hive.box<Trabajo>('trabajos');
+      _ordenesBox = Hive.box<OrdenTrabajo>('ordenes');
+      _usuariosBox = Hive.box<Usuario>('usuarios');
 
-    await _createDefaultAdminUser();
-    await _loadThemePreference();
-    
-    // NUEVO: Verificar si hay una sesión activa
-    await _checkExistingSession();
-    
-    notifyListeners();
+      await _createDefaultAdminUser();
+      await _loadThemePreference();
+      
+      // NUEVO: Verificar si hay una sesión activa
+      await _checkExistingSession();
+      
+      _isInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      print('⚠️ Error en inicialización de AppState: $e');
+      _isInitialized = true; // Marcar como inicializado para evitar bloqueos
+      notifyListeners();
+    }
   }
 
   // NUEVO MÉTODO: Verificar sesión existente
@@ -57,19 +68,27 @@ class AppState extends ChangeNotifier {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null && session.user != null) {
         print('📱 Sesión existente encontrada para: ${session.user!.email}');
-        
-        // Crear un usuario temporal con los datos de la sesión
-        _currentUser = Usuario(
-          id: session.user!.id,
-          email: session.user!.email ?? '',
-          password: '', // No necesitamos la contraseña para sesiones existentes
-          nombre: session.user!.userMetadata?['nombre'] ?? session.user!.email?.split('@')[0] ?? 'Usuario',
-          rol: 'user', // Rol por defecto
-          negocioId: 'default_negocio',
-          creadoEn: DateTime.now(),
-        );
-        
-        print('✅ Sesión restaurada exitosamente');
+        // Consultar la tabla usuarios para obtener el registro completo
+        final response = await Supabase.instance.client
+            .from('usuarios')
+            .select()
+            .eq('auth_user_id', session.user!.id)
+            .maybeSingle();
+        if (response == null) {
+          print('❌ No se encontró el usuario en la tabla usuarios');
+          _currentUser = null;
+        } else {
+          _currentUser = Usuario(
+            id: response['id'],
+            email: response['email'] ?? '',
+            password: '',
+            nombre: response['nombre'] ?? session.user!.email?.split('@')[0] ?? 'Usuario',
+            rol: response['rol'] ?? 'user',
+            negocioId: response['empresa_id'] ?? '',
+            creadoEn: DateTime.tryParse(response['created_at'] ?? '') ?? DateTime.now(),
+          );
+          print('✅ Sesión restaurada exitosamente con empresaId: ${_currentUser!.negocioId}');
+        }
       } else {
         print('❌ No hay sesión activa');
         _currentUser = null;
@@ -104,21 +123,35 @@ class AppState extends ChangeNotifier {
       final response = await supabaseAuth.signInWithEmail(email, password);
       final session = response.session;
       if (session != null && response.user != null) {
-        // Crear un usuario temporal para mantener la sesión
+        // Consultar la tabla usuarios para obtener el registro completo
+        final userResponse = await Supabase.instance.client
+            .from('usuarios')
+            .select()
+            .eq('auth_user_id', response.user!.id)
+            .maybeSingle();
+        if (userResponse == null) {
+          print('❌ No se encontró el usuario en la tabla usuarios');
+          _currentUser = null;
+          notifyListeners();
+          return false;
+        }
         _currentUser = Usuario(
-          id: response.user!.id,
-          email: response.user!.email ?? email,
-          password: '', // No almacenar la contraseña
-          nombre: response.user!.email?.split('@').first ?? 'Usuario',
-          rol: 'user',
-          negocioId: 'supabase_user',
-          creadoEn: DateTime.now(),
+          id: userResponse['id'],
+          email: userResponse['email'] ?? email,
+          password: '',
+          nombre: userResponse['nombre'] ?? response.user!.email?.split('@')[0] ?? 'Usuario',
+          rol: userResponse['rol'] ?? 'user',
+          negocioId: userResponse['empresa_id'] ?? '',
+          creadoEn: DateTime.tryParse(userResponse['created_at'] ?? '') ?? DateTime.now(),
         );
         notifyListeners();
         return true;
       }
       return false;
     } catch (e) {
+      print('⚠️ Error en login: $e');
+      _currentUser = null;
+      notifyListeners();
       return false;
     }
   }

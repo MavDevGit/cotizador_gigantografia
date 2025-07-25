@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores de la app Cotizador Pro para modo oscuro -->
+    <color name="splash_background_light">#1E2229</color>
+    <color name="splash_background_dark">#1E2229</color>
+    <color name="splash_icon_color_light">#FFFFFF</color>
+    <color name="splash_icon_color_dark">#FFFFFF</color>
+</resources> 
