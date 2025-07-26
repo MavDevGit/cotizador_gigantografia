@@ -68,8 +68,14 @@ class _SplashScreenState extends State<SplashScreen>
     _logoController.forward();
     _progressController.repeat();
     
-    // Verificar cuando la app esté lista
-    _checkAppReady();
+    // Mostrar el splash solo por 1 segundo, luego navegar
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AuthWrapper()),
+        );
+      }
+    });
   }
 
   Future<void> _checkAppReady() async {
