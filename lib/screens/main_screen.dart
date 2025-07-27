@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state/app_state.dart';
+import '../utils/utils.dart';
+import '../widgets/widgets.dart';
 import 'screens.dart';
 
 class MainScreen extends StatefulWidget {
@@ -20,9 +22,12 @@ class _MainScreenState extends State<MainScreen> {
   ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_selectedIndex != index) {
+      AppFeedback.hapticFeedback(HapticType.selection);
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
 @override
@@ -44,29 +49,23 @@ class _MainScreenState extends State<MainScreen> {
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.md),
+            child: Semantics(
+              label: theme.brightness == Brightness.dark 
+                  ? 'Cambiar a modo claro' 
+                  : 'Cambiar a modo oscuro',
+              button: true,
+              child: AppStatusChip(
+                label: theme.brightness == Brightness.dark ? 'Oscuro' : 'Claro',
+                status: StatusType.neutral,
+                icon: theme.brightness == Brightness.dark 
+                    ? Icons.dark_mode_rounded 
+                    : Icons.light_mode_rounded,
                 onTap: () {
+                  AppFeedback.hapticFeedback(HapticType.selection);
                   appState.toggleTheme();
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(
-                    theme.brightness == Brightness.dark 
-                        ? Icons.light_mode 
-                        : Icons.dark_mode,
-                    size: 20,
-                    color: theme.colorScheme.primaryContainer,
-                  ),
-                ),
               ),
             ),
           ),
@@ -77,24 +76,33 @@ class _MainScreenState extends State<MainScreen> {
         color: theme.colorScheme.surface,
         child: _widgetOptions.elementAt(_selectedIndex),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calculate),
-            label: 'Cotizar',
+      bottomNavigationBar: Semantics(
+        label: 'Navegación principal',
+        child: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calculate_rounded),
+              label: 'Cotizar',
+              tooltip: 'Crear nueva cotización',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.list_alt_rounded),
+              label: 'Órdenes',
+              tooltip: 'Ver órdenes de trabajo',
+            ),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: theme.colorScheme.primary,
+          unselectedItemColor: theme.colorScheme.onSurfaceVariant,
+          backgroundColor: theme.colorScheme.surface,
+          type: BottomNavigationBarType.fixed,
+          elevation: 8,
+          selectedLabelStyle: AppTextStyles.caption(context).copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Órdenes',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: theme.colorScheme.primary,
-        unselectedItemColor: theme.colorScheme.onSurfaceVariant,
-        backgroundColor: theme.colorScheme.surface,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-        onTap: _onItemTapped,
+          unselectedLabelStyle: AppTextStyles.caption(context),
+          onTap: _onItemTapped,
+        ),
       ),
     );
   }
@@ -102,32 +110,35 @@ class _MainScreenState extends State<MainScreen> {
   Drawer _buildDrawer(BuildContext context, AppState appState) {
     final theme = Theme.of(context);
     final isAdmin = appState.currentUser?.rol == 'admin';
+    
     return Drawer(
       backgroundColor: theme.colorScheme.surface,
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
+          // Header mejorado
           UserAccountsDrawerHeader(
             accountName: Text(
               appState.currentUser?.nombre ?? 'Usuario',
-              style: theme.textTheme.titleMedium?.copyWith(
+              style: AppTextStyles.subtitle1(context).copyWith(
                 color: theme.colorScheme.onPrimary,
                 fontWeight: FontWeight.w600,
               ),
             ),
             accountEmail: Text(
               appState.currentUser?.email ?? 'email@example.com',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onPrimary.withValues(alpha: 0.8),
+              style: AppTextStyles.body2(context).copyWith(
+                color: theme.colorScheme.onPrimary.withOpacity(0.8),
               ),
             ),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: theme.colorScheme.onPrimary,
-              child: Text(
-                appState.currentUser?.nombre.substring(0, 1).toUpperCase() ?? 'A',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
+            currentAccountPicture: Hero(
+              tag: 'user_avatar',
+              child: CircleAvatar(
+                backgroundColor: theme.colorScheme.onPrimary,
+                child: Text(
+                  appState.currentUser?.nombre.substring(0, 1).toUpperCase() ?? 'A',
+                  style: AppTextStyles.heading2(context).copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ),
@@ -142,127 +153,170 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
           ),
-          ListTile(
-            leading: Icon(
-              Icons.people_alt_outlined,
-              color: theme.colorScheme.primary,
-            ),
-            title: Text(
-              'Gestionar Clientes',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionClientesScreen()));
-            },
-          ),
-          if (isAdmin)
-            ListTile(
-              leading: Icon(
-                Icons.person_outline,
-                color: theme.colorScheme.primary,
-              ),
-              title: Text(
-                'Gestionar Usuarios',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurface,
+          
+          // Menu items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.people_alt_outlined,
+                  title: 'Gestionar Clientes',
+                  onTap: () => _navigateFromDrawer(context, const GestionClientesScreen()),
+                  semanticLabel: 'Ir a gestión de clientes',
                 ),
-              ),
-              onTap: () {
-                Navigator.pop(context); // Cierra el drawer
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionUsuariosScreen()));
-              },
+                
+                if (isAdmin)
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.person_outline,
+                    title: 'Gestionar Usuarios',
+                    onTap: () => _navigateFromDrawer(context, const GestionUsuariosScreen()),
+                    semanticLabel: 'Ir a gestión de usuarios',
+                  ),
+                
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.work_outline,
+                  title: 'Gestionar Trabajos',
+                  onTap: () => _navigateFromDrawer(context, const GestionTrabajosScreen()),
+                  semanticLabel: 'Ir a gestión de trabajos',
+                ),
+                
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Divider(color: theme.colorScheme.outline.withOpacity(0.3)),
+                ),
+                
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.notifications_outlined,
+                  title: 'Notificaciones',
+                  onTap: () => _navigateFromDrawer(context, const NotificationSettingsScreen()),
+                  semanticLabel: 'Configurar notificaciones',
+                ),
+                
+                _buildDrawerItem(
+                  context,
+                  icon: Icons.palette_outlined,
+                  title: 'Tema',
+                  onTap: () => _navigateFromDrawer(context, const ThemeSettingsScreen()),
+                  semanticLabel: 'Configurar tema de la aplicación',
+                ),
+                
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Divider(color: theme.colorScheme.outline.withOpacity(0.3)),
+                ),
+              ],
             ),
-          ListTile(
-            leading: Icon(
-              Icons.work_outline,
-              color: theme.colorScheme.primary,
-            ),
-            title: Text(
-              'Gestionar Trabajos',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const GestionTrabajosScreen()));
-            },
           ),
-          Divider(color: theme.colorScheme.outline),
-          ListTile(
-            leading: Icon(
-              Icons.notifications_outlined,
-              color: theme.colorScheme.secondary,
+          
+          // Logout button at bottom
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: _buildDrawerItem(
+              context,
+              icon: Icons.logout_rounded,
+              title: 'Cerrar Sesión',
+              onTap: () => _handleLogout(context, appState),
+              semanticLabel: 'Cerrar sesión de la aplicación',
+              isDestructive: true,
             ),
-            title: Text(
-              'Config. Notificaciones',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationSettingsScreen()));
-            },
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.palette_outlined,
-              color: theme.colorScheme.secondary,
-            ),
-            title: Text(
-              'Configuración de Tema',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemeSettingsScreen()));
-            },
-          ),
-          ListTile(
-            leading: Icon(
-              Icons.settings_outlined,
-              color: theme.colorScheme.secondary,
-            ),
-            title: Text(
-              'Configuración General',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            onTap: () {
-              // TODO: Navegar a una pantalla de configuración general
-              Navigator.pop(context);
-            },
-          ),
-          Divider(color: theme.colorScheme.outline),
-          ListTile(
-            leading: Icon(
-              Icons.logout,
-              color: theme.colorScheme.error,
-            ),
-            title: Text(
-              'Cerrar Sesión',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-            onTap: () async {
-              await appState.logout();
-              Navigator.pop(context); // Cierra el drawer
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildDrawerItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required String semanticLabel,
+    bool isDestructive = false,
+  }) {
+    final theme = Theme.of(context);
+    final color = isDestructive 
+        ? theme.colorScheme.error 
+        : theme.colorScheme.onSurface;
+    
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isDestructive ? theme.colorScheme.error : theme.colorScheme.primary,
+          size: AppConstants.iconSize,
+        ),
+        title: Text(
+          title,
+          style: AppTextStyles.body1(context).copyWith(
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+      ),
+    );
+  }
+
+  void _navigateFromDrawer(BuildContext context, Widget screen) {
+    Navigator.pop(context);
+    AppFeedback.hapticFeedback(HapticType.light);
+    AppNavigator.push(
+      context,
+      screen,
+      type: TransitionType.slide,
+    );
+  }
+
+  void _handleLogout(BuildContext context, AppState appState) async {
+    Navigator.pop(context);
+    
+    final confirmed = await AppFeedback.showConfirmDialog(
+      context,
+      title: 'Cerrar Sesión',
+      message: '¿Estás seguro de que deseas cerrar sesión?',
+      confirmText: 'Cerrar Sesión',
+      cancelText: 'Cancelar',
+      icon: Icons.logout_rounded,
+      confirmColor: AppColors.getError(context),
+    );
+
+    if (confirmed == true) {
+      AppFeedback.showLoadingDialog(context, message: 'Cerrando sesión...');
+      
+      try {
+        await appState.logout();
+        
+        if (context.mounted) {
+          AppFeedback.hideLoadingDialog(context);
+          AppNavigator.pushReplacement(
+            context,
+            const LoginScreen(),
+            type: TransitionType.fade,
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppFeedback.hideLoadingDialog(context);
+          AppFeedback.showError(
+            context,
+            'Error al cerrar sesión. Inténtalo de nuevo.',
+          );
+        }
+      }
+    }
   }
 }

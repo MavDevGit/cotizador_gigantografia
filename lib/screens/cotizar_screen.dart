@@ -8,6 +8,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import '../app_state/app_state.dart';
 import '../models/models.dart';
 import '../utils/utils.dart';
+import '../widgets/widgets.dart';
 import 'screens.dart';
 
 class CotizarScreen extends StatefulWidget {
@@ -95,6 +96,25 @@ class _CotizarScreenState extends State<CotizarScreen> {
     final cantidad = int.tryParse(_cantidadController.text) ?? 1;
     final adicional = double.tryParse(_adicionalController.text) ?? 0.0;
 
+    // Validaciones
+    if (ancho <= 0 || alto <= 0) {
+      AppFeedback.showWarning(
+        context,
+        'Las dimensiones deben ser mayores a 0',
+      );
+      AppFeedback.hapticFeedback(HapticType.medium);
+      return;
+    }
+
+    if (cantidad <= 0) {
+      AppFeedback.showWarning(
+        context,
+        'La cantidad debe ser mayor a 0',
+      );
+      AppFeedback.hapticFeedback(HapticType.medium);
+      return;
+    }
+
     setState(() {
       _trabajosEnOrden.add(OrdenTrabajoTrabajo(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -111,6 +131,14 @@ class _CotizarScreenState extends State<CotizarScreen> {
       _cantidadController.text = '1';
       _adicionalController.clear();
     });
+
+    // Feedback de éxito
+    AppFeedback.hapticFeedback(HapticType.light);
+    AppFeedback.showToast(
+      context,
+      message: 'Trabajo agregado a la orden',
+      type: ToastType.success,
+    );
   }
 
   void _editTrabajoEnOrden(int index) {
@@ -124,27 +152,70 @@ class _CotizarScreenState extends State<CotizarScreen> {
           setState(() {
             _trabajosEnOrden[index] = editedTrabajo;
           });
+          AppFeedback.hapticFeedback(HapticType.light);
+          AppFeedback.showToast(
+            context,
+            message: 'Trabajo actualizado',
+            type: ToastType.success,
+          );
         },
       ),
     );
   }
 
-  void _guardarOrden() {
-    if (_formKey.currentState!.validate()) {
-      if (_clienteSeleccionado == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, seleccione un cliente')),
-        );
-        return;
-      }
-      if (_trabajosEnOrden.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Por favor, añada al menos un trabajo a la orden')),
-        );
-        return;
-      }
+  void _showDeleteConfirmation(int index) async {
+    final confirmed = await AppFeedback.showConfirmDialog(
+      context,
+      title: 'Eliminar trabajo',
+      message: '¿Estás seguro de que deseas eliminar este trabajo de la orden?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      confirmColor: AppColors.getError(context),
+      icon: Icons.delete_rounded,
+    );
 
+    if (confirmed == true) {
+      setState(() {
+        _trabajosEnOrden.removeAt(index);
+      });
+      AppFeedback.hapticFeedback(HapticType.medium);
+      AppFeedback.showToast(
+        context,
+        message: 'Trabajo eliminado de la orden',
+        type: ToastType.info,
+      );
+    }
+  }
+
+  void _guardarOrden() async {
+    if (!_formKey.currentState!.validate()) {
+      AppFeedback.hapticFeedback(HapticType.medium);
+      return;
+    }
+
+    if (_clienteSeleccionado == null) {
+      AppFeedback.showWarning(
+        context,
+        'Por favor, selecciona un cliente para continuar',
+      );
+      AppFeedback.hapticFeedback(HapticType.medium);
+      return;
+    }
+
+    if (_trabajosEnOrden.isEmpty) {
+      AppFeedback.showWarning(
+        context,
+        'Añade al menos un trabajo a la orden para continuar',
+      );
+      AppFeedback.hapticFeedback(HapticType.medium);
+      return;
+    }
+
+    // Mostrar loading
+    AppFeedback.showLoadingDialog(context, message: 'Guardando orden...');
+    AppFeedback.hapticFeedback(HapticType.light);
+
+    try {
       final appState = Provider.of<AppState>(context, listen: false);
 
       final totalPersonalizadoValue =
@@ -173,25 +244,50 @@ class _CotizarScreenState extends State<CotizarScreen> {
         creadoPorUsuarioId: appState.currentUser!.id,
       );
 
+      // Simular un pequeño delay para mostrar el loading
+      await Future.delayed(const Duration(milliseconds: 800));
+
       appState.addOrden(newOrden);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Orden guardada con éxito')),
-      );
+      if (mounted) {
+        // Ocultar loading
+        AppFeedback.hideLoadingDialog(context);
+        
+        // Mostrar éxito con haptic feedback
+        AppFeedback.hapticFeedback(HapticType.medium);
+        AppFeedback.showSuccess(
+          context,
+          'Orden guardada exitosamente',
+          actionLabel: 'Ver órdenes',
+          onAction: () {
+            // Navegar a la pantalla de órdenes
+            Navigator.of(context).pushNamed('/ordenes');
+          },
+        );
 
-      // Reset the entire screen
-      setState(() {
-        _trabajosEnOrden = [];
-        _clienteSeleccionado = null;
-        _trabajoSeleccionado = null; // Resetear también el trabajo seleccionado
+        // Reset the entire screen
+        setState(() {
+          _trabajosEnOrden = [];
+          _clienteSeleccionado = null;
+          _trabajoSeleccionado = null;
 
-        // Clear controllers to update UI
-        _totalPersonalizadoController.clear();
-        _adelantoController.clear();
-        _notasController.clear();
+          // Clear controllers to update UI
+          _totalPersonalizadoController.clear();
+          _adelantoController.clear();
+          _notasController.clear();
 
-        _formKey.currentState?.reset();
-      });
+          _formKey.currentState?.reset();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.hideLoadingDialog(context);
+        AppFeedback.hapticFeedback(HapticType.heavy);
+        AppFeedback.showError(
+          context,
+          'Error al guardar la orden. Inténtalo de nuevo.',
+        );
+      }
     }
   }
 
@@ -203,17 +299,17 @@ class _CotizarScreenState extends State<CotizarScreen> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
           child: Column(
             children: [
               _buildAddWorkSection(appState),
-              FormSpacing.verticalLarge(),
+              AppSpacing.verticalXL,
               _buildWorkList(),
-              FormSpacing.verticalLarge(),
+              AppSpacing.verticalXL,
               _buildSummaryAndClientSection(appState),
-              FormSpacing.verticalExtraLarge(),
+              AppSpacing.verticalXXL,
               _buildSaveButton(),
-              FormSpacing.verticalExtraLarge(),
+              AppSpacing.verticalXXL,
             ],
           ),
         ),
@@ -222,19 +318,15 @@ class _CotizarScreenState extends State<CotizarScreen> {
   }
 
   Widget _buildSaveButton() {
+    final isEnabled = _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty;
+    
     return Center(
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.save_rounded),
-        label: const Text('Guardar Orden de Trabajo'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty
-            ? _guardarOrden
-            : null,
+      child: AppButton(
+        text: 'Guardar Orden de Trabajo',
+        icon: Icons.save_rounded,
+        onPressed: isEnabled ? _guardarOrden : null,
+        size: ButtonSize.large,
+        width: ResponsiveBreakpoints.isMobile(context) ? double.infinity : 300,
       ),
     );
   }
@@ -572,133 +664,138 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
   Widget _buildWorkList() {
     if (_trabajosEnOrden.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            children: [
-              Icon(
-                Icons.work_off_rounded,
-                size: 64,
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
-              ),
-              FormSpacing.verticalLarge(),
-              Text(
-                'Aún no hay trabajos en esta orden',
-                style: UIUtils.getTitleStyle(context).copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              FormSpacing.verticalSmall(),
-              Text(
-                'Agrega trabajos usando el formulario superior',
-                style: UIUtils.getSubtitleStyle(context),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+      return AppCard(
+        child: AppEmptyState(
+          icon: Icons.work_off_rounded,
+          title: 'Aún no hay trabajos en esta orden',
+          subtitle: 'Agrega trabajos usando el formulario superior',
         ),
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Lista de trabajos
-            ...List.generate(_trabajosEnOrden.length, (index) {
-              final item = _trabajosEnOrden[index];
-              final theme = Theme.of(context);
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: UIUtils.cardDecoration(context),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.work_rounded,
-                      color: theme.colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  title: Text(
-                    '${item.trabajo.nombre} (${item.cantidad}x)',
-                    style: UIUtils.getTitleStyle(context),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FormSpacing.verticalSmall(),
-                      Text(
-                        'Dimensiones: ${item.ancho}m x ${item.alto}m',
-                        style: UIUtils.getSubtitleStyle(context),
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Lista de trabajos
+          ...List.generate(_trabajosEnOrden.length, (index) {
+            final item = _trabajosEnOrden[index];
+            final theme = Theme.of(context);
+            
+            return DelayedAnimation(
+              delay: index * 100,
+              type: AnimationType.slideUp,
+              child: Container(
+                margin: EdgeInsets.only(bottom: AppSpacing.md),
+                child: AppCard(
+                  isClickable: true,
+                  onTap: () => _editTrabajoEnOrden(index),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.all(AppSpacing.md),
+                    leading: Container(
+                      padding: EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
                       ),
-                      if (item.adicional > 0)
+                      child: Icon(
+                        Icons.work_rounded,
+                        color: theme.colorScheme.onPrimaryContainer,
+                        size: AppConstants.iconSizeSmall,
+                      ),
+                    ),
+                    title: Text(
+                      '${item.trabajo.nombre} (${item.cantidad}x)',
+                      style: AppTextStyles.subtitle2(context),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AppSpacing.verticalXS,
                         Text(
-                          'Adicional: Bs ${item.adicional.toStringAsFixed(2)}',
-                          style: UIUtils.getSubtitleStyle(context),
+                          'Dimensiones: ${item.ancho}m x ${item.alto}m (${(item.ancho * item.alto).toStringAsFixed(2)} m²)',
+                          style: AppTextStyles.caption(context),
                         ),
-                    ],
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
+                        if (item.adicional > 0) ...[
+                          AppSpacing.verticalXS,
                           Text(
-                            'Bs ${item.precioFinal.toStringAsFixed(2)}',
-                            style: UIUtils.getPriceStyle(context),
-                          ),
-                          FormSpacing.verticalSmall(),
-                          Text(
-                            '${item.ancho * item.alto} m²',
-                            style: UIUtils.getSubtitleStyle(context),
+                            'Adicional: Bs ${item.adicional.toStringAsFixed(2)}',
+                            style: AppTextStyles.caption(context).copyWith(
+                              color: AppColors.getInfo(context),
+                            ),
                           ),
                         ],
-                      ),
-                      FormSpacing.horizontalSmall(),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_rounded, 
-                          color: UIUtils.getErrorColor(context),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Bs ${item.precioFinal.toStringAsFixed(2)}',
+                              style: AppTextStyles.price(context),
+                            ),
+                            AppSpacing.verticalXS,
+                            AppStatusChip(
+                              label: '${item.cantidad}x',
+                              status: StatusType.info,
+                            ),
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _trabajosEnOrden.removeAt(index);
-                          });
-                        },
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
+                        AppSpacing.horizontalSM,
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_rounded,
+                            color: AppColors.getError(context),
+                            size: AppConstants.iconSizeSmall,
+                          ),
+                          onPressed: () {
+                            AppFeedback.hapticFeedback(HapticType.medium);
+                            _showDeleteConfirmation(index);
+                          },
+                          tooltip: 'Eliminar',
+                        ),
+                      ],
+                    ),
                   ),
-                  onTap: () => _editTrabajoEnOrden(index),
-                ),
-              );
-            }),
-
-            // Total de trabajos
-            if (_trabajosEnOrden.isNotEmpty) ...[
-              UIUtils.buildSectionDivider(context),
-              UIUtils.buildInfoContainer(
-                context: context, 
-                child: PriceDisplay(
-                  label: 'Total de Trabajos:',
-                  amount: _trabajosEnOrden.fold(0.0, (sum, item) => sum + item.precioFinal),
-                  isTotal: true,
                 ),
               ),
-            ],
+            );
+          }),
+
+          // Total de trabajos
+          if (_trabajosEnOrden.isNotEmpty) ...[
+            AppSpacing.verticalMD,
+            Divider(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
+            AppSpacing.verticalMD,
+            Container(
+              padding: EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total de Trabajos:',
+                    style: AppTextStyles.subtitle2(context),
+                  ),
+                  Text(
+                    'Bs ${_trabajosEnOrden.fold(0.0, (sum, item) => sum + item.precioFinal).toStringAsFixed(2)}',
+                    style: AppTextStyles.price(context, isLarge: true),
+                  ),
+                ],
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

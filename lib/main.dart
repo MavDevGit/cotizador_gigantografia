@@ -10,6 +10,7 @@ import 'app_state/app_state.dart';
 import 'models/models.dart';
 import 'screens/screens.dart';
 import 'services/services.dart';
+import 'utils/utils.dart';
 
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -79,34 +80,45 @@ Future<void> _initializeEverythingElse(AppState appState) async {
 
 // Configurar listeners de autenticación
 void _setupAuthListeners(AppState appState) {
-  // Manejo global de expiración de sesión
+  // Listener unificado para cambios de autenticación
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     final event = data.event;
-    if (event == AuthChangeEvent.signedOut || event == AuthChangeEvent.userDeleted) {
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthWrapper()),
-        (route) => false,
-      );
-      final context = navigatorKey.currentContext;
-      if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.')),
-        );
-      }
-    }
-  });
-
-  // Listener para cambios de autenticación
-  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     final session = data.session;
     final user = session?.user;
     
-    print('🔄 Cambio de estado de auth: ${data.event}');
+    print('🔄 Cambio de estado de auth: $event');
     
-    if (session == null || user == null) {
+    // Manejar cierre de sesión y expiración
+    if (event == AuthChangeEvent.signedOut || 
+        event == AuthChangeEvent.userDeleted ||
+        session == null || 
+        user == null) {
+      
       print('❌ Sesión cerrada/expirada');
+      
+      // Solo actualizar estado si había un usuario activo
       if (appState.currentUser != null) {
         appState.logout();
+        
+        // Navegar al login
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthWrapper()),
+          (route) => false,
+        );
+        
+        // Mostrar mensaje con el sistema moderno de feedback
+        final context = navigatorKey.currentContext;
+        if (context != null) {
+          // Usar un delay para asegurar que la navegación esté completa
+          Future.delayed(Duration(milliseconds: 500), () {
+            if (navigatorKey.currentContext != null) {
+              AppFeedback.showInfo(
+                navigatorKey.currentContext!,
+                'Sesión cerrada correctamente',
+              );
+            }
+          });
+        }
       }
     } else {
       print('✅ Sesión activa detectada');
@@ -225,30 +237,60 @@ String _getTimezoneFromOffset(Duration offset) {
   }
 }
 
-class CotizadorApp extends StatelessWidget {
+class CotizadorApp extends StatefulWidget {
   const CotizadorApp({super.key});
+
+  @override
+  State<CotizadorApp> createState() => _CotizadorAppState();
+}
+
+class _CotizadorAppState extends State<CotizadorApp> 
+    with SingleTickerProviderStateMixin {
+  late AnimationController _themeAnimationController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _themeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _themeAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        return MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'Cotizador Pro',
-          theme: _buildLightTheme(),
-          darkTheme: _buildDarkTheme(),
-          themeMode: appState.themeMode,
-          home: const SplashScreen(), // Usar SplashScreen en lugar de AuthWrapper
-          debugShowCheckedModeBanner: false,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: const [
-            Locale('es', 'ES'), // Español
-          ],
-          locale: const Locale('es', 'ES'),
+        return AnimatedBuilder(
+          animation: _themeAnimationController,
+          builder: (context, child) {
+            return MaterialApp(
+              navigatorKey: navigatorKey,
+              title: 'Cotizador Pro',
+              theme: _buildLightTheme(),
+              darkTheme: _buildDarkTheme(),
+              themeMode: appState.themeMode,
+              themeAnimationDuration: const Duration(milliseconds: 300),
+              themeAnimationCurve: Curves.easeInOut,
+              home: const SplashScreen(),
+              debugShowCheckedModeBanner: false,
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              supportedLocales: const [
+                Locale('es', 'ES'),
+              ],
+              locale: const Locale('es', 'ES'),
+            );
+          },
         );
       },
     );
@@ -387,11 +429,12 @@ class CotizadorApp extends StatelessWidget {
   ThemeData _buildDarkTheme() {
     const primaryColor = Color(0xFF0AE98A);
     const secondaryColor = Color(0xFF1292EE);
-    const backgroundColor = Color(0xFF13161C);
-    const surfaceColor = Color(0xFF1E2229);
-    const cardColor = Color(0xFF1E2229);
-    const textColor = Colors.white;
-    const subtitleColor = Color(0xFF59616F);
+    const backgroundColor = Color(0xFF0F1419);
+    const surfaceColor = Color(0xFF1A1D23);
+    const surfaceVariantColor = Color(0xFF2A2D36);
+    const cardColor = Color(0xFF1A1D23);
+    const textColor = Color(0xFFF8F9FA);
+    const subtitleColor = Color(0xFF9CA3AF);
 
     return ThemeData(
       useMaterial3: true,
@@ -400,11 +443,15 @@ class CotizadorApp extends StatelessWidget {
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
+        surfaceVariant: surfaceVariantColor,
         onPrimary: backgroundColor,
         onSecondary: Colors.white,
         onSurface: textColor,
+        onSurfaceVariant: subtitleColor,
         background: backgroundColor,
         onBackground: textColor,
+        outline: const Color(0xFF404756),
+        shadow: Colors.black.withOpacity(0.3),
       ),
       scaffoldBackgroundColor: backgroundColor,
       appBarTheme: const AppBarTheme(
@@ -427,7 +474,7 @@ class CotizadorApp extends StatelessWidget {
         shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF2D3748), width: 1),
+          side: const BorderSide(color: Color(0xFF404756), width: 1),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       ),
