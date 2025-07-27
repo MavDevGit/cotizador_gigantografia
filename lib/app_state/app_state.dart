@@ -51,7 +51,7 @@ class AppState extends ChangeNotifier {
       await _loadThemePreference();
       
       // NUEVO: Verificar si hay una sesión activa
-      await _checkExistingSession();
+      await checkExistingSession();
       
       _isInitialized = true;
       notifyListeners();
@@ -63,7 +63,7 @@ class AppState extends ChangeNotifier {
   }
 
   // NUEVO MÉTODO: Verificar sesión existente
-  Future<void> _checkExistingSession() async {
+  Future<void> checkExistingSession() async {
     try {
       final session = Supabase.instance.client.auth.currentSession;
       if (session != null && session.user != null) {

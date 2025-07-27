@@ -15,3 +15,4 @@ export 'main_screen.dart';
 export 'theme_settings_screen.dart';
 export 'gestion_usuarios_screen.dart';
 export 'splash_screen.dart';
+export 'verificando_screen.dart';

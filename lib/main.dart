@@ -18,6 +18,7 @@ import 'package:app_links/app_links.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/supabase_service.dart';
+import 'screens/verificando_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -72,6 +73,9 @@ Future<void> _initializeEverythingElse(AppState appState) async {
   // Configurar listeners de autenticación
   _setupAuthListeners(appState);
 
+  // Configurar listener de AppLinks para verificación por correo
+  _setupAppLinksListener(appState);
+
   // Inicializar servicios no críticos
   await _initializeNonCriticalServices();
   
@@ -124,6 +128,153 @@ void _setupAuthListeners(AppState appState) {
       print('✅ Sesión activa detectada');
     }
   });
+}
+
+// Configurar listener de AppLinks para verificación por correo
+void _setupAppLinksListener(AppState appState) {
+  final appLinks = AppLinks();
+  
+  // Listener para enlaces cuando la app está en primer plano
+  appLinks.uriLinkStream.listen((Uri? uri) {
+    print('🔗 AppLinks - URI recibido: $uri');
+    if (uri != null) {
+      _handleAuthCallback(uri, appState);
+    }
+  }, onError: (err) {
+    print('❌ Error en AppLinks stream: $err');
+  });
+
+  // Verificar si la app fue abierta por un enlace
+  appLinks.getInitialLink().then((Uri? uri) {
+    print('🔗 AppLinks - Enlace inicial: $uri');
+    if (uri != null) {
+      _handleAuthCallback(uri, appState);
+    }
+  });
+}
+
+// Manejar el callback de autenticación
+Future<void> _handleAuthCallback(Uri uri, AppState appState) async {
+  print('🔄 Procesando callback de autenticación: $uri');
+
+  // Verificar que sea el enlace correcto
+  if (uri.scheme == 'cotizador' && uri.host == 'auth') {
+    try {
+      // Obtener datos guardados en SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final pendingEmpresa = prefs.getString('pending_empresa');
+      final pendingNombre = prefs.getString('pending_nombre');
+      final pendingEmail = prefs.getString('pending_email');
+
+      print('📋 Datos pendientes encontrados:');
+      print('   - Empresa: $pendingEmpresa');
+      print('   - Nombre: $pendingNombre');
+      print('   - Email: $pendingEmail');
+
+      if (pendingEmpresa != null && pendingNombre != null && pendingEmail != null) {
+        // Reintentar hasta 5 veces esperando la sesión activa
+        const maxIntentos = 5;
+        int intentos = 0;
+        bool sesionActiva = false;
+        while (intentos < maxIntentos) {
+          final session = Supabase.instance.client.auth.currentSession;
+          print('🔐 Intento ${intentos + 1}: Sesión actual: ${session != null ? 'Activa' : 'Inactiva'}');
+          if (session != null && session.user != null) {
+            sesionActiva = true;
+            break;
+          }
+          await Future.delayed(const Duration(seconds: 1));
+          intentos++;
+        }
+
+        if (!sesionActiva) {
+          print('❌ No hay sesión activa después de reintentos');
+          _showVerificationError('Error en la verificación del correo electrónico. Intenta nuevamente.');
+          return;
+        }
+
+        final session = Supabase.instance.client.auth.currentSession;
+        print('👤 Usuario en sesión: ${session?.user?.email}');
+        print('🆔 Auth User ID: ${session?.user?.id}');
+
+        print('✅ Usuario verificado, creando empresa y usuario...');
+
+        // Crear empresa
+        final supabaseService = SupabaseService();
+        print('🏢 Creando empresa: $pendingEmpresa');
+        final empresaId = await supabaseService.createEmpresa(pendingEmpresa);
+
+        if (empresaId != null) {
+          print('✅ Empresa creada con ID: $empresaId');
+
+          // Crear usuario
+          print('👤 Creando usuario: $pendingNombre ($pendingEmail)');
+          final usuarioCreado = await supabaseService.createUsuario(
+            email: pendingEmail,
+            empresaId: empresaId,
+            authUserId: session!.user!.id,
+            nombre: pendingNombre,
+            rol: 'admin', // Primer usuario es admin
+          );
+
+          if (usuarioCreado) {
+            print('✅ Usuario creado exitosamente');
+
+            // Limpiar datos pendientes
+            await prefs.remove('pending_empresa');
+            await prefs.remove('pending_nombre');
+            await prefs.remove('pending_email');
+            print('🧹 Datos pendientes limpiados');
+
+            // Actualizar el estado de la app
+            await appState.checkExistingSession();
+            print('🔄 Estado de la app actualizado');
+
+            final context2 = navigatorKey.currentContext;
+            if (context2 != null) {
+              AppFeedback.showSuccess(
+                context2,
+                '¡Verificación exitosa! Tu cuenta ha sido activada.',
+              );
+              navigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const MainScreen()),
+                (route) => false,
+              );
+              print('🏠 Navegando a pantalla principal');
+            }
+          } else {
+            print('❌ Error al crear usuario');
+            _showVerificationError('Error al crear el usuario en la base de datos');
+          }
+        } else {
+          print('❌ Error al crear empresa');
+          _showVerificationError('Error al crear la empresa en la base de datos');
+        }
+      } else {
+        print('❌ No se encontraron datos pendientes');
+        _showVerificationError('No se encontraron datos de registro pendientes');
+      }
+    } catch (e) {
+      print('❌ Error procesando callback: $e');
+      _showVerificationError('Error procesando la verificación: $e');
+    }
+  } else {
+    print('⚠️ URI no reconocido: $uri');
+  }
+}
+
+// Mostrar error de verificación
+void _showVerificationError(String message) {
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    AppFeedback.showError(context, message);
+    
+    // Navegar al login
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthWrapper()),
+      (route) => false,
+    );
+  }
 }
 
 // Inicializar servicios no críticos

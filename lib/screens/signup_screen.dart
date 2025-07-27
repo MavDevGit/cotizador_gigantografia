@@ -8,6 +8,7 @@ import '../app_state/app_state.dart';
 import '../utils/utils.dart';
 import '../widgets/widgets.dart';
 import 'screens.dart';
+import 'verificando_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -223,10 +224,10 @@ class _SignupScreenState extends State<SignupScreen>
             'Revisa tu correo para confirmar el registro.',
           );
           
-          // Navegar de vuelta al login
+          // Navegar a la pantalla de verificación
           AppNavigator.pushReplacement(
             context,
-            const LoginScreen(),
+            VerificandoScreen(email: email),
             type: TransitionType.fade,
           );
         }
