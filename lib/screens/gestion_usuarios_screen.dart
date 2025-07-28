@@ -90,6 +90,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
   void _showUsuarioDialog({Map<String, dynamic>? usuario}) async {
     final appState = Provider.of<AppState>(context, listen: false);
+    print('ID de Empresa que se está usando: ${appState.currentUser!.negocioId}');
     final isAdmin = appState.currentUser?.rol == 'admin';
     if (!isAdmin) return;
     final result = await showDialog(
