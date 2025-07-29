@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
@@ -63,13 +64,13 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
       if (isOrderJob) {
         final newOrderJob = OrdenTrabajoTrabajo(
-          id: widget.trabajoEnOrden?.id ?? Random().nextDouble().toString(),
+          id: widget.trabajoEnOrden?.id ?? const Uuid().v4(), // Usar UUID válido
           trabajo: _selectedTrabajo!,
           ancho: _ancho ?? 1.0,
           alto: _alto ?? 1.0,
@@ -79,20 +80,32 @@ class _TrabajoFormDialogState extends State<TrabajoFormDialog> {
         widget.onSave!(newOrderJob);
       } else {
         final appState = Provider.of<AppState>(context, listen: false);
+        
+        // Obtener empresaId del usuario actual
+        if (appState.currentUser == null) {
+          // Mostrar error si no hay usuario autenticado
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error: No hay usuario autenticado')),
+          );
+          return;
+        }
+        
+        final empresaId = appState.currentUser!.empresaId;
+        
         if (widget.trabajo == null) {
           // Crear nuevo trabajo
-          final newTrabajo = Trabajo(
-              id: Random().nextDouble().toString(),
+          final newTrabajo = Trabajo.legacy(
+              id: const Uuid().v4(), // Usar UUID válido
               nombre: _nombre,
               precioM2: _precioM2,
-              negocioId: appState.currentUser!.negocioId,
-              creadoEn: DateTime.now());
-          appState.addTrabajo(newTrabajo);
+              negocioId: empresaId,
+              createdAt: DateTime.now());
+          await appState.addTrabajo(newTrabajo);
         } else {
           // Actualizar trabajo existente
           widget.trabajo!.nombre = _nombre;
           widget.trabajo!.precioM2 = _precioM2;
-          appState.updateTrabajo(widget.trabajo!);
+          await appState.updateTrabajo(widget.trabajo!);
         }
       }
       Navigator.of(context).pop();

@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:mime/mime.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/archivo_adjunto.dart';
 
@@ -49,14 +50,13 @@ class ArchivoService {
 
             // Crear objeto ArchivoAdjunto
             final archivo = ArchivoAdjunto(
-              id: Random().nextDouble().toString(),
+              id: const Uuid().v4(), // Usar UUID válido
               nombre: file.name,
-              rutaArchivo: destinationPath,
-              tipoMime: mimeType,
+              ruta: destinationPath, // Cambiado de rutaArchivo
+              tipo: mimeType, // Cambiado de tipoMime
               tamano: file.size,
               fechaSubida: DateTime.now(),
-              subidoPorUsuarioId: usuarioId,
-              subidoPorUsuarioNombre: usuarioNombre,
+              // Removidos parámetros que no existen: subidoPorUsuarioId, subidoPorUsuarioNombre
             );
 
             archivos.add(archivo);
@@ -75,7 +75,10 @@ class ArchivoService {
 
   static Future<bool> eliminarArchivo(ArchivoAdjunto archivo) async {
     try {
-      final file = File(archivo.rutaArchivo);
+      final rutaArchivo = archivo.rutaArchivo;
+      if (rutaArchivo == null) return false;
+      
+      final file = File(rutaArchivo);
       if (await file.exists()) {
         await file.delete();
         return true;
@@ -89,9 +92,12 @@ class ArchivoService {
 
   static Future<bool> abrirArchivo(ArchivoAdjunto archivo) async {
     try {
-      final file = File(archivo.rutaArchivo);
+      final rutaArchivo = archivo.rutaArchivo;
+      if (rutaArchivo == null) return false;
+      
+      final file = File(rutaArchivo);
       if (await file.exists()) {
-        final result = await OpenFile.open(archivo.rutaArchivo);
+        final result = await OpenFile.open(rutaArchivo);
         return result.type == ResultType.done;
       }
       return false;

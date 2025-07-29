@@ -41,7 +41,7 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
       );
 
       if (archivos.isNotEmpty) {
-        await appState.addArchivosAOrden(widget.orden, archivos);
+        await appState.addArchivosAOrden(widget.orden.id, archivos);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -95,7 +95,7 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
     if (confirm == true) {
       try {
         final appState = Provider.of<AppState>(context, listen: false);
-        await appState.removeArchivoDeOrden(widget.orden, archivo);
+        await appState.removeArchivoDeOrden(widget.orden.id, archivo);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,10 +120,12 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
 
   Future<void> _abrirArchivo(ArchivoAdjunto archivo) async {
     try {
-      if (archivo.tipoMime.startsWith('image/')) {
+      final tipoMime = archivo.tipoMime ?? '';
+      if (tipoMime.startsWith('image/')) {
         // Para imágenes, abrir el visor de galería
         final imagenes = widget.orden.archivos
-            .where((a) => a.tipoMime.startsWith('image/'))
+            .where((a) => (a.tipoMime ?? '').startsWith('image/'))
+            .cast<ArchivoAdjunto>()
             .toList();
         final initialIndex = imagenes.indexOf(archivo);
 
@@ -171,7 +173,7 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
         builder: (context) => AlertDialog(
           title: Row(
             children: [
-              Icon(archivo.icono, size: isMobile ? 20 : 24),
+              Icon(_getFileIcon(archivo), size: isMobile ? 20 : 24),
               SizedBox(width: isMobile ? 6 : 8),
               Expanded(
                 child: Text(
@@ -186,7 +188,7 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildDetalleRow('Tipo:', archivo.tipoArchivo),
+                _buildDetalleRow('Tipo:', archivo.tipoArchivo ?? 'No especificado'),
                 _buildDetalleRow('Tamaño:', archivo.tamanoFormateado),
                 _buildDetalleRow('Fecha:',
                     DateFormat('dd/MM/yyyy HH:mm').format(archivo.fechaSubida)),
@@ -549,5 +551,20 @@ class _ArchivosAdjuntosWidgetState extends State<ArchivosAdjuntosWidget> {
         ),
       ),
     );
+  }
+
+  IconData _getFileIcon(ArchivoAdjunto archivo) {
+    final tipoMime = archivo.tipoMime ?? '';
+    if (tipoMime.startsWith('image/')) {
+      return Icons.image;
+    } else if (tipoMime.contains('pdf')) {
+      return Icons.picture_as_pdf;
+    } else if (tipoMime.contains('word') || tipoMime.contains('document')) {
+      return Icons.description;
+    } else if (tipoMime.contains('excel') || tipoMime.contains('spreadsheet')) {
+      return Icons.table_chart;
+    } else {
+      return Icons.insert_drive_file;
+    }
   }
 }

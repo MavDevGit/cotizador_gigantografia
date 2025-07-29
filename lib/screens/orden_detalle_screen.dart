@@ -51,24 +51,16 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     _ordenEditable = OrdenTrabajo(
       id: widget.orden.id,
       cliente: widget.orden.cliente,
-      trabajos: List<OrdenTrabajoTrabajo>.from(widget.orden.trabajos.map((t) =>
-          OrdenTrabajoTrabajo(
-              id: t.id,
-              trabajo: t.trabajo,
-              ancho: t.ancho,
-              alto: t.alto,
-              cantidad: t.cantidad,
-              adicional: t.adicional))),
-      historial: List<OrdenHistorial>.from(widget.orden.historial),
+      empresaId: widget.orden.empresaId,
+      authUserId: widget.orden.authUserId,
       adelanto: widget.orden.adelanto,
       totalPersonalizado: widget.orden.totalPersonalizado,
       notas: widget.orden.notas,
       estado: widget.orden.estado,
       fechaEntrega: widget.orden.fechaEntrega,
       horaEntrega: widget.orden.horaEntrega,
-      creadoEn: widget.orden.creadoEn,
-      creadoPorUsuarioId: widget.orden.creadoPorUsuarioId,
-      archivos: widget.orden.archivos, // Referencia directa, no copia
+      createdAt: widget.orden.createdAt,
+      items: List<OrdenTrabajoItem>.from(widget.orden.items),
     );
 
     _totalPersonalizadoController =
@@ -151,7 +143,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
         context: context,
         builder: (_) => TrabajoFormDialog(
               trabajoEnOrden: trabajo,
-              availableTrabajos: appState.trabajos,
+              availableTrabajos: appState.trabajosSync,
               onSave: (editedTrabajo) {
                 setState(() {
                   _ordenEditable.trabajos[index] = editedTrabajo;
@@ -169,12 +161,14 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
         builder: (_) => TrabajoFormDialog(
               onSave: (nuevoTrabajo) {
                 setState(() {
-                  _ordenEditable.trabajos.add(nuevoTrabajo);
+                  // Convertir OrdenTrabajoTrabajo a OrdenTrabajoItem
+                  final nuevoItem = nuevoTrabajo.toOrdenTrabajoItem(_ordenEditable.id);
+                  _ordenEditable.items.add(nuevoItem);
                   _ordenEditable.totalPersonalizado = null;
                   _totalPersonalizadoController.clear();
                 });
               },
-              availableTrabajos: appState.trabajos,
+              availableTrabajos: appState.trabajosSync,
             ));
   }
 
@@ -289,7 +283,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Widget _buildDetallesTab(AppState appState) {
     // Filtrar clientes únicos manualmente
     final uniqueClientes = <String, Cliente>{};
-    for (var cliente in appState.clientes) {
+    for (var cliente in appState.clientesSync) {
       uniqueClientes[cliente.id] = cliente;
     }
     final clientesUnicos = uniqueClientes.values.toList();
@@ -393,16 +387,16 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 child:
                     Text('Trabajos', style: Theme.of(context).textTheme.titleLarge),
               ),
-              ..._ordenEditable.trabajos.map((trabajo) {
-                int index = _ordenEditable.trabajos.indexOf(trabajo);
+              ..._ordenEditable.items.map((item) {
+                int index = _ordenEditable.items.indexOf(item);
                 return ListTile(
-                  title: Text(trabajo.trabajo.nombre),
+                  title: Text(item.trabajoNombre),
                   subtitle: Text(
-                      '${trabajo.ancho}x${trabajo.alto}m - ${trabajo.cantidad} uni.'),
+                      '${item.ancho}x${item.alto}m - ${item.cantidad} uni.'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Bs ${trabajo.precioFinal.toStringAsFixed(2)}'),
+                      Text('Bs ${item.precioFinal.toStringAsFixed(2)}'),
                       IconButton(
                         icon: Icon(
                           Icons.delete_outline,
@@ -410,7 +404,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                         ),
                         onPressed: () {
                           setState(() {
-                            _ordenEditable.trabajos.removeAt(index);
+                            _ordenEditable.items.removeAt(index);
                             _ordenEditable.totalPersonalizado = null;
                             _totalPersonalizadoController.clear();
                           });
@@ -418,7 +412,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       )
                     ],
                   ),
-                  onTap: () => _showEditTrabajoDialog(trabajo, index),
+                  // onTap: () => _showEditTrabajoDialog(item, index), // Temporalmente deshabilitado
                 );
               }).toList(),
               Align(

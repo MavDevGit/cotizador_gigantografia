@@ -85,8 +85,9 @@ class _ImageViewerState extends State<ImageViewer> {
             itemCount: widget.imagenes.length,
             builder: (context, index) {
               return PhotoViewGalleryPageOptions(
-                imageProvider:
-                    FileImage(File(widget.imagenes[index].rutaArchivo)),
+                imageProvider: widget.imagenes[index].rutaArchivo != null
+                    ? FileImage(File(widget.imagenes[index].rutaArchivo!))
+                    : null,
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * (isMobile ? 2.5 : 3),
                 heroAttributes:
@@ -255,7 +256,7 @@ class _ImageViewerState extends State<ImageViewer> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildInfoRow('Nombre:', archivo.nombre),
-              _buildInfoRow('Tipo:', archivo.tipoArchivo),
+              _buildInfoRow('Tipo:', archivo.tipoArchivo ?? 'No especificado'),
               _buildInfoRow('Tamaño:', archivo.tamanoFormateado),
               _buildInfoRow('Subido por:', archivo.subidoPorUsuarioNombre),
               _buildInfoRow('Fecha:',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:uuid/uuid.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
@@ -36,6 +37,9 @@ class _CotizarScreenState extends State<CotizarScreen> {
   DateTime _fechaEntrega = DateTime.now();
   TimeOfDay _horaEntrega = TimeOfDay.now();
 
+  // Memoizar el Future para evitar reconstrucciones
+  late Future<List<dynamic>> _dataFuture;
+
   @override
   void initState() {
     super.initState();
@@ -47,11 +51,15 @@ class _CotizarScreenState extends State<CotizarScreen> {
     _adelantoController = TextEditingController();
     _notasController = TextEditingController();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final appState = Provider.of<AppState>(context, listen: false);
-      if (mounted && appState.trabajos.isNotEmpty) {
+    // Inicializar el Future memoizado
+    final appState = Provider.of<AppState>(context, listen: false);
+    _dataFuture = Future.wait([appState.trabajos, appState.clientes]);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final trabajos = await appState.trabajos;
+      if (mounted && trabajos.isNotEmpty) {
         setState(() {
-          _trabajoSeleccionado = appState.trabajos.first;
+          _trabajoSeleccionado = trabajos.first;
         });
       }
     });
@@ -117,7 +125,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
     setState(() {
       _trabajosEnOrden.add(OrdenTrabajoTrabajo(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: const Uuid().v4(), // Usar UUID válido
         trabajo: _trabajoSeleccionado!,
         ancho: ancho,
         alto: alto,
@@ -141,13 +149,12 @@ class _CotizarScreenState extends State<CotizarScreen> {
     );
   }
 
-  void _editTrabajoEnOrden(int index) {
-    final appState = Provider.of<AppState>(context, listen: false);
+  void _editTrabajoEnOrden(int index, List<Trabajo> trabajosDisponibles) {
     showDialog(
       context: context,
       builder: (_) => TrabajoFormDialog(
         trabajoEnOrden: _trabajosEnOrden[index],
-        availableTrabajos: appState.trabajos,
+        availableTrabajos: trabajosDisponibles,
         onSave: (editedTrabajo) {
           setState(() {
             _trabajosEnOrden[index] = editedTrabajo;
@@ -223,31 +230,34 @@ class _CotizarScreenState extends State<CotizarScreen> {
       final adelantoValue = double.tryParse(_adelantoController.text) ?? 0.0;
       final notasValue = _notasController.text;
 
+      final ordenId = const Uuid().v4(); // Generar ID una sola vez
+
+      // Convertir OrdenTrabajoTrabajo a OrdenTrabajoItem
+      final items = _trabajosEnOrden.map((trabajo) => trabajo.toOrdenTrabajoItem(ordenId)).toList();
+
       final newOrden = OrdenTrabajo(
-        id: Random().nextDouble().toString(),
+        id: ordenId,
         cliente: _clienteSeleccionado!,
-        trabajos: _trabajosEnOrden,
-        historial: [
-          OrdenHistorial(
-              id: Random().nextDouble().toString(),
-              cambio: 'Creación de la orden.',
-              usuarioId: appState.currentUser!.id,
-              usuarioNombre: appState.currentUser!.nombre,
-              timestamp: DateTime.now())
-        ],
+        empresaId: appState.currentUser!.empresaId,
+        authUserId: appState.currentUser!.id,
+        items: items,
         adelanto: adelantoValue,
         totalPersonalizado: totalPersonalizadoValue,
         notas: notasValue.isNotEmpty ? notasValue : null,
         fechaEntrega: _fechaEntrega,
         horaEntrega: _horaEntrega,
-        creadoEn: DateTime.now(),
-        creadoPorUsuarioId: appState.currentUser!.id,
+        createdAt: DateTime.now(),
       );
 
       // Simular un pequeño delay para mostrar el loading
       await Future.delayed(const Duration(milliseconds: 800));
 
-      appState.addOrden(newOrden);
+      print('🔄 Guardando orden: ${newOrden.id}');
+      print('🔄 Cliente: ${newOrden.cliente.nombre}');
+      print('🔄 Items: ${newOrden.items.length}');
+      
+      await appState.addOrden(newOrden);
+      print('✅ Orden guardada exitosamente');
 
       if (mounted) {
         // Ocultar loading
@@ -280,12 +290,13 @@ class _CotizarScreenState extends State<CotizarScreen> {
         });
       }
     } catch (e) {
+      print('❌ Error al guardar orden: $e');
       if (mounted) {
         AppFeedback.hideLoadingDialog(context);
         AppFeedback.hapticFeedback(HapticType.heavy);
         AppFeedback.showError(
           context,
-          'Error al guardar la orden. Inténtalo de nuevo.',
+          'Error al guardar la orden: ${e.toString()}',
         );
       }
     }
@@ -293,27 +304,59 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = Provider.of<AppState>(context);
+    return FutureBuilder<List<dynamic>>(
+      future: _dataFuture, // Usar el Future memoizado
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Error al cargar datos: ${snapshot.error}'),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
-    return Scaffold(
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-          child: Column(
-            children: [
-              _buildAddWorkSection(appState),
-              AppSpacing.verticalXL,
-              _buildWorkList(),
-              AppSpacing.verticalXL,
-              _buildSummaryAndClientSection(appState),
-              AppSpacing.verticalXXL,
-              _buildSaveButton(),
-              AppSpacing.verticalXXL,
-            ],
+        final trabajosDisponibles = (snapshot.data?[0] as List<Trabajo>?) ?? [];
+        final clientesDisponibles = (snapshot.data?[1] as List<Cliente>?) ?? [];
+
+        return Scaffold(
+          body: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  _buildAddWorkSection(trabajosDisponibles),
+                  AppSpacing.verticalXL,
+                  _buildWorkList(trabajosDisponibles),
+                  AppSpacing.verticalXL,
+                  _buildSummaryAndClientSection(clientesDisponibles),
+                  AppSpacing.verticalXXL,
+                  _buildSaveButton(),
+                  AppSpacing.verticalXXL,
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -331,10 +374,10 @@ class _CotizarScreenState extends State<CotizarScreen> {
     );
   }
 
-  Card _buildAddWorkSection(AppState appState) {
+  Card _buildAddWorkSection(List<Trabajo> trabajosDisponibles) {
     // Filtrar trabajos únicos manualmente
     final uniqueTrabajos = <String, Trabajo>{};
-    for (var trabajo in appState.trabajos) {
+    for (var trabajo in trabajosDisponibles) {
       uniqueTrabajos[trabajo.id] = trabajo;
     }
     final trabajosUnicos = uniqueTrabajos.values.toList();
@@ -662,7 +705,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
     );
   }
 
-  Widget _buildWorkList() {
+  Widget _buildWorkList(List<Trabajo> trabajosDisponibles) {
     if (_trabajosEnOrden.isEmpty) {
       return AppCard(
         child: AppEmptyState(
@@ -689,7 +732,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                 margin: EdgeInsets.only(bottom: AppSpacing.md),
                 child: AppCard(
                   isClickable: true,
-                  onTap: () => _editTrabajoEnOrden(index),
+                  onTap: () => _editTrabajoEnOrden(index, trabajosDisponibles),
                   child: ListTile(
                     contentPadding: EdgeInsets.all(AppSpacing.md),
                     leading: Container(
@@ -705,7 +748,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
                       ),
                     ),
                     title: Text(
-                      '${item.trabajo.nombre} (${item.cantidad}x)',
+                      '${item.trabajo?.nombre ?? 'Trabajo sin nombre'} (${item.cantidad}x)',
                       style: AppTextStyles.subtitle2(context),
                     ),
                     subtitle: Column(
@@ -800,7 +843,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
     );
   }
 
-  Widget _buildSummaryAndClientSection(AppState appState) {
+  Widget _buildSummaryAndClientSection(List<Cliente> clientesDisponibles) {
     double totalBruto =
         _trabajosEnOrden.fold(0.0, (p, e) => p + e.precioFinal);
     final totalPersonalizado =
@@ -812,7 +855,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
     // Filtrar clientes únicos manualmente
     final uniqueClientes = <String, Cliente>{};
-    for (var cliente in appState.clientes) {
+    for (var cliente in clientesDisponibles) {
       uniqueClientes[cliente.id] = cliente;
     }
     final clientesUnicos = uniqueClientes.values.toList();

@@ -1,32 +1,51 @@
+// Modelo de compatibilidad para OrdenHistorial
+// Este es un wrapper para mantener compatibilidad con el código existente
 
-import 'package:hive/hive.dart';
-
-part 'orden_historial.g.dart';
-
-@HiveType(typeId: 5)
-class OrdenHistorial extends HiveObject {
-  @HiveField(0)
+class OrdenHistorial {
   final String id;
-  @HiveField(1)
-  final String cambio;
-  @HiveField(2)
+  final String accion;
+  final String? descripcion;
+  final DateTime fecha;
   final String usuarioId;
-  @HiveField(3)
-  final String usuarioNombre;
-  @HiveField(4)
-  final DateTime timestamp;
-  @HiveField(5)
-  final String? dispositivo;
-  @HiveField(6)
-  final String? ip;
+
+  // Para compatibilidad
+  String get cambio => descripcion ?? accion;
 
   OrdenHistorial({
     required this.id,
-    required this.cambio,
+    required this.accion,
+    this.descripcion,
+    required this.fecha,
     required this.usuarioId,
-    required this.usuarioNombre,
-    required this.timestamp,
-    this.dispositivo,
-    this.ip,
+    String? cambio, // Para compatibilidad
   });
+
+  // Constructor alternativo para compatibilidad
+  OrdenHistorial.withCambio({
+    required this.id,
+    required String cambio,
+    required this.fecha,
+    required this.usuarioId,
+  }) : accion = 'cambio',
+       descripcion = cambio;
+
+  factory OrdenHistorial.fromJson(Map<String, dynamic> json) {
+    return OrdenHistorial(
+      id: json['id'] as String,
+      accion: json['accion'] as String,
+      descripcion: json['descripcion'] as String?,
+      fecha: DateTime.parse(json['fecha'] as String),
+      usuarioId: json['usuario_id'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'accion': accion,
+      'descripcion': descripcion,
+      'fecha': fecha.toIso8601String(),
+      'usuario_id': usuarioId,
+    };
+  }
 }

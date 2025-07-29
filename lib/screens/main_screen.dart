@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_state/app_state.dart';
 import '../utils/utils.dart';
@@ -15,6 +16,24 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _useSupabaseAppState = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMigrationStatus();
+  }
+
+  Future<void> _checkMigrationStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _useSupabaseAppState = prefs.getBool('migration_completed') ?? false;
+      });
+    } catch (e) {
+      print('⚠️ Error verificando estado de migración: $e');
+    }
+  }
 
   static const List<Widget> _widgetOptions = <Widget>[
     CotizarScreen(),

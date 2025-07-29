@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
@@ -39,16 +38,45 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     
-    // Filtrar clientes únicos manualmente
-    final uniqueClientes = <String, Cliente>{};
-    final allClientes = showArchived ? appState.clientesArchivados : appState.clientes;
-    for (var cliente in allClientes) {
-      uniqueClientes[cliente.id] = cliente;
-    }
-    final clientesUnicos = uniqueClientes.values.toList();
-    final clientesToShow = _searchText.isEmpty
-        ? clientesUnicos
-        : clientesUnicos.where((c) => c.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
+    return FutureBuilder<List<Cliente>>(
+      future: showArchived ? appState.clientesArchivados : appState.clientes,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Error al cargar clientes: ${snapshot.error}'),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Filtrar clientes únicos manualmente
+        final uniqueClientes = <String, Cliente>{};
+        final allClientes = snapshot.data ?? [];
+        for (var cliente in allClientes) {
+          uniqueClientes[cliente.id] = cliente;
+        }
+        final clientesUnicos = uniqueClientes.values.toList();
+        final clientesToShow = _searchText.isEmpty
+            ? clientesUnicos
+            : clientesUnicos.where((c) => c.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -202,6 +230,8 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
               onPressed: () => _showClienteDialog(context),
               child: const Icon(Icons.add),
             ),
+    );
+      },
     );
   }
 }

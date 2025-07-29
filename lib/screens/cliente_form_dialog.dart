@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
@@ -27,26 +28,27 @@ class _ClienteFormDialogState extends State<ClienteFormDialog> {
     _contacto = widget.cliente?.contacto ?? '';
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final appState = Provider.of<AppState>(context, listen: false);
 
       if (widget.cliente == null) {
         // Crear nuevo cliente
-        final newCliente = Cliente(
-          id: Random().nextDouble().toString(),
+        final newCliente = Cliente.legacy(
+          id: const Uuid().v4(), // Usar UUID válido
           nombre: _nombre,
           contacto: _contacto,
-          negocioId: appState.currentUser!.negocioId,
-          creadoEn: DateTime.now(),
+          empresaId: appState.currentUser!.empresaId, // Cambiado de negocioId
+          authUserId: appState.currentUser!.id,
+          createdAt: DateTime.now(),
         );
-        appState.addCliente(newCliente);
+        await appState.addCliente(newCliente);
       } else {
         // Actualizar cliente existente
         widget.cliente!.nombre = _nombre;
         widget.cliente!.contacto = _contacto;
-        appState.updateCliente(widget.cliente!);
+        await appState.updateCliente(widget.cliente!);
       }
       Navigator.of(context).pop();
     }

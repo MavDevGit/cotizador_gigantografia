@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
+// Importamos solo AppState (con Supabase)
 import 'app_state/app_state.dart';
 import 'models/models.dart';
 import 'screens/screens.dart';
 import 'services/services.dart';
 import 'utils/utils.dart';
 
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/supabase_service.dart';
 import 'screens/verificando_screen.dart';
@@ -31,42 +29,23 @@ Future<void> main() async {
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVteXh2bW5ubnFoZWp6cGR6Y2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNjk3MzUsImV4cCI6MjA2ODk0NTczNX0.rNvdbFz02Bq-VUkQy0VqWtaHPx4xi4pR8BIW4_OAn_s',
   );
 
-  // Crear AppState básico
+  // Usar AppState (Supabase)
   final appState = AppState();
-
-  // Ejecutar la app INMEDIATAMENTE
   runApp(
-    ChangeNotifierProvider.value(
-      value: appState,
+    ChangeNotifierProvider<AppState>(
+      create: (_) => appState,
       child: const CotizadorApp(),
     ),
   );
-
-  // Inicializar todo lo demás después del runApp
-  _initializeEverythingElse(appState);
+  
+  // Inicializar todo después del runApp
+  await _initializeEverything(appState);
 }
 
-// Inicializar todo lo demás después del runApp
-Future<void> _initializeEverythingElse(AppState appState) async {
+// Inicializar servicios después del runApp
+Future<void> _initializeEverything(AppState appState) async {
   print('🚀 Iniciando inicialización completa...');
   
-  // Inicializar Hive
-  await Hive.initFlutter();
-  Hive.registerAdapter(TrabajoAdapter());
-  Hive.registerAdapter(ClienteAdapter());
-  Hive.registerAdapter(UsuarioAdapter());
-  Hive.registerAdapter(OrdenTrabajoTrabajoAdapter());
-  Hive.registerAdapter(OrdenHistorialAdapter());
-  Hive.registerAdapter(OrdenTrabajoAdapter());
-  Hive.registerAdapter(ArchivoAdjuntoAdapter());
-  Hive.registerAdapter(TimeOfDayAdapter());
-
-  // Abrir boxes
-  await Hive.openBox<Trabajo>('trabajos');
-  await Hive.openBox<Cliente>('clientes');
-  await Hive.openBox<Usuario>('usuarios');
-  await Hive.openBox<OrdenTrabajo>('ordenes');
-
   // Inicializar AppState
   await appState.init();
 
@@ -416,6 +395,7 @@ class _CotizadorAppState extends State<CotizadorApp>
 
   @override
   Widget build(BuildContext context) {
+    // Usar Consumer para AppState
     return Consumer<AppState>(
       builder: (context, appState, child) {
         return AnimatedBuilder(

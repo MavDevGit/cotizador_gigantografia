@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
@@ -8,11 +7,11 @@ import '../models/models.dart';
 import '../utils/utils.dart';
 import 'screens.dart';
 
-abstract class GestionScreen<T extends HiveObject> extends StatefulWidget {
+abstract class GestionScreen<T> extends StatefulWidget {
   const GestionScreen({super.key});
 }
 
-abstract class GestionScreenState<T extends HiveObject>
+abstract class GestionScreenState<T>
     extends State<GestionScreen<T>> {
   bool showArchived = false;
 
@@ -80,7 +79,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
   
   void _reorderTrabajos(int oldIndex, int newIndex) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final trabajosActuales = List<Trabajo>.from(appState.trabajos);
+    final trabajosActuales = List<Trabajo>.from(appState.trabajosSync);
     
     if (newIndex > oldIndex) {
       newIndex -= 1;
@@ -96,16 +95,45 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     
-    // Filtrar trabajos únicos manualmente
-    final uniqueTrabajos = <String, Trabajo>{};
-    final allTrabajos = showArchived ? appState.trabajosArchivados : appState.trabajos;
-    for (var trabajo in allTrabajos) {
-      uniqueTrabajos[trabajo.id] = trabajo;
-    }
-    final trabajosUnicos = uniqueTrabajos.values.toList();
-    final trabajosToShow = _searchText.isEmpty
-        ? trabajosUnicos
-        : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
+    return FutureBuilder<List<Trabajo>>(
+      future: showArchived ? appState.trabajosArchivados : appState.trabajos,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Error al cargar trabajos: ${snapshot.error}'),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Filtrar trabajos únicos manualmente
+        final uniqueTrabajos = <String, Trabajo>{};
+        final allTrabajos = snapshot.data ?? [];
+        for (var trabajo in allTrabajos) {
+          uniqueTrabajos[trabajo.id] = trabajo;
+        }
+        final trabajosUnicos = uniqueTrabajos.values.toList();
+        final trabajosToShow = _searchText.isEmpty
+            ? trabajosUnicos
+            : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -325,6 +353,8 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
               onPressed: () => _showTrabajoDialog(context),
               child: const Icon(Icons.add),
             ),
+    );
+      },
     );
   }
 }

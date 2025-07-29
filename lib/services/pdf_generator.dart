@@ -390,7 +390,7 @@ class PDFGenerator {
                   children: [
                     pw.Text('Contacto:',
                         style: pw.TextStyle(font: boldFont, fontSize: 12)),
-                    pw.Text(cliente.contacto,
+                    pw.Text(cliente.contacto ?? 'No especificado',
                         style: pw.TextStyle(font: font, fontSize: 12)),
                   ],
                 ),
@@ -403,7 +403,10 @@ class PDFGenerator {
   }
 
   static pw.Widget _buildWorkTable(
-      List<OrdenTrabajoTrabajo> trabajos, pw.Font font, pw.Font boldFont) {
+      List<dynamic> trabajos, pw.Font font, pw.Font boldFont) {
+    // Convertir la lista a OrdenTrabajoTrabajo
+    final trabajosTyped = trabajos.cast<OrdenTrabajoTrabajo>();
+    
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400),
       columnWidths: {
@@ -428,14 +431,14 @@ class PDFGenerator {
           ],
         ),
         // Trabajos
-        ...trabajos.map((trabajo) => pw.TableRow(
+        ...trabajosTyped.map((trabajo) => pw.TableRow(
               children: [
-                _buildTableCell(trabajo.trabajo.nombre, font),
+                _buildTableCell(trabajo.trabajo?.nombre ?? 'Sin nombre', font),
                 _buildTableCell('${trabajo.ancho}m', font),
                 _buildTableCell('${trabajo.alto}m', font),
                 _buildTableCell('${trabajo.cantidad}', font),
                 _buildTableCell(
-                    'Bs ${trabajo.trabajo.precioM2.toStringAsFixed(2)}', font),
+                    'Bs ${trabajo.trabajo?.precioM2.toStringAsFixed(2) ?? '0.00'}', font),
                 _buildTableCell(
                     'Bs ${trabajo.precioFinal.toStringAsFixed(2)}', font),
               ],

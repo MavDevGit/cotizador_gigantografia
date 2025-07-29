@@ -88,11 +88,43 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    var ordenes = appState.ordenes.where((orden) {
-      return orden.cliente.nombre
-          .toLowerCase()
-          .contains(_searchQuery.toLowerCase());
-    }).toList();
+    
+    return FutureBuilder<List<OrdenTrabajo>>(
+      future: appState.ordenes,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text('Error al cargar órdenes: ${snapshot.error}'),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        // Usar datos del snapshot
+        final ordenesData = snapshot.data ?? [];
+        var ordenes = ordenesData.where((orden) {
+          return orden.cliente.nombre
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+        }).toList();
 
     // Aplicar filtro por estado
     if (_selectedFilter != null) {
@@ -125,7 +157,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: _buildStatsCards(appState.ordenes),
+                  child: _buildStatsCards(ordenesData),
                 ),
               ),
               
@@ -228,6 +260,8 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
           ),
         ),
       ),
+    );
+      },
     );
   }
 
