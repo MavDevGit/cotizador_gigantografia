@@ -1,23 +1,55 @@
 # Cotizador Gigantografía
 
-## 📋 Descripción
+Aplicación Flutter para gestión de órdenes de trabajo de gigantografías.
 
-Sistema de cotización y gestión de órdenes de trabajo desarrollado en Flutter para empresas de gigantografía. Permite crear cotizaciones, gestionar clientes, trabajos y realizar seguimiento de órdenes de trabajo de forma integral.
+## 🚀 Características
 
-## ✨ Características
+- ✅ Gestión de clientes
+- ✅ Catálogo de trabajos
+- ✅ Órdenes de trabajo con cálculos automáticos
+- ✅ Generación de PDFs
+- ✅ Base de datos Supabase
+- ✅ Multi-empresa (cada empresa ve solo sus datos)
 
-### 🎯 Funcionalidades Principales
-- **Gestión de Cotizaciones**: Crear y calcular cotizaciones de trabajos
-- **Gestión de Clientes**: Administrar base de datos de clientes
-- **Gestión de Trabajos**: Configurar tipos de trabajos y precios por m²
-- **Órdenes de Trabajo**: Seguimiento completo del proceso de producción
-- **Historial de Cambios**: Trazabilidad de todas las modificaciones
+## 🛠️ Setup
 
-### 🌐 Características Técnicas
-- **Localización**: Interfaz completamente en español
-- **Diseño Responsivo**: Optimizado para móviles, tablets y escritorio
-- **Almacenamiento Local**: Base de datos Hive para persistencia offline
-- **Gestión de Estados**: Provider para manejo de estado reactivo
+### 1. Dependencias
+```bash
+flutter pub get
+```
+
+### 2. Configurar Supabase
+1. Ve a tu proyecto Supabase Dashboard
+2. SQL Editor → Pega el contenido de `fix_rls_simple.sql`
+3. Ejecutar para habilitar RLS
+
+### 3. Ejecutar
+```bash
+flutter run
+```
+
+## 📱 Pantallas
+
+- **Dashboard**: Resumen de estadísticas
+- **Clientes**: Gestión de clientes
+- **Trabajos**: Catálogo de servicios
+- **Órdenes**: Crear y gestionar órdenes de trabajo
+
+## 🔧 Tecnologías
+
+- **Flutter** - UI Framework
+- **Supabase** - Backend y Base de datos
+- **PDF** - Generación de documentos
+- **Provider** - Gestión de estado
+
+## 🔒 Seguridad
+
+Row Level Security (RLS) habilitado - cada empresa solo ve sus propios datos.
+
+## 📄 Archivos Importantes
+
+- `fix_rls_simple.sql` - SQL para habilitar RLS en Supabase
+- `lib/` - Código fuente de la aplicación
 - **Selectores de Fecha/Hora**: Configurados con semana iniciando el lunes
 
 ### 📱 Plataformas Soportadas

@@ -362,7 +362,18 @@ class SupabaseService {
 
   Future<List<OrdenTrabajo>> getOrdenes() async {
     try {
-      // Obtener órdenes con clientes
+      print('🔍 Obteniendo órdenes de trabajo...');
+      
+      // Verificar que hay un usuario autenticado
+      final currentUser = client.auth.currentUser;
+      if (currentUser == null) {
+        print('❌ No hay usuario autenticado');
+        return [];
+      }
+      
+      print('👤 Usuario autenticado: ${currentUser.email} (${currentUser.id})');
+
+      // Obtener órdenes con clientes (RLS se encargará del filtrado por empresa)
       final response = await client
           .from('ordenes_trabajo')
           .select('''
@@ -371,29 +382,37 @@ class SupabaseService {
           ''')
           .order('created_at', ascending: false);
 
+      print('📊 Respuesta de órdenes: ${response.length} registros encontrados');
+      
       List<OrdenTrabajo> ordenes = [];
 
       for (var ordenData in response) {
-        // Obtener ítems de la orden
-        final itemsResponse = await client
-            .from('orden_trabajo_items')
-            .select()
-            .eq('orden_id', ordenData['id']);
+        try {
+          // Obtener ítems de la orden
+          final itemsResponse = await client
+              .from('orden_trabajo_items')
+              .select()
+              .eq('orden_id', ordenData['id']);
 
-        final items = (itemsResponse as List)
-            .map((itemJson) => OrdenTrabajoItem.fromJson(itemJson))
-            .toList();
+          final items = (itemsResponse as List)
+              .map((itemJson) => OrdenTrabajoItem.fromJson(itemJson))
+              .toList();
 
-        // Crear el objeto orden con cliente e ítems
-        final orden = OrdenTrabajo.fromJson({
-          ...ordenData,
-          'cliente': ordenData['clientes'],
-          'items': items.map((item) => item.toJson()).toList(),
-        });
+          // Crear el objeto orden con cliente e ítems
+          final orden = OrdenTrabajo.fromJson({
+            ...ordenData,
+            'cliente': ordenData['clientes'],
+            'items': items.map((item) => item.toJson()).toList(),
+          });
 
-        ordenes.add(orden);
+          ordenes.add(orden);
+          print('   ✅ Orden procesada: ${orden.id} - Cliente: ${orden.cliente.nombre}');
+        } catch (e) {
+          print('   ❌ Error procesando orden ${ordenData['id']}: $e');
+        }
       }
 
+      print('✅ Total órdenes procesadas: ${ordenes.length}');
       return ordenes;
     } catch (e) {
       print('❌ Error al obtener órdenes: $e');
@@ -500,16 +519,53 @@ class SupabaseService {
 
   Future<Map<String, int>> getEstadisticasOrdenes() async {
     try {
-      final ordenes = await getOrdenes();
+      print('📊 Obteniendo estadísticas de órdenes...');
+      
+      // Usar la función RPC para obtener estadísticas
+      final response = await client.rpc('get_order_statistics');
+      
       final estadisticas = <String, int>{};
       
-      for (var orden in ordenes) {
-        estadisticas[orden.estado] = (estadisticas[orden.estado] ?? 0) + 1;
+      for (var row in response) {
+        estadisticas[row['estado']] = row['cantidad'];
       }
       
+      print('✅ Estadísticas obtenidas: $estadisticas');
       return estadisticas;
     } catch (e) {
       print('❌ Error al obtener estadísticas: $e');
+      // Fallback: obtener estadísticas manualmente
+      try {
+        final ordenes = await getOrdenes();
+        final estadisticas = <String, int>{};
+        
+        for (var orden in ordenes) {
+          estadisticas[orden.estado] = (estadisticas[orden.estado] ?? 0) + 1;
+        }
+        
+        return estadisticas;
+      } catch (e2) {
+        print('❌ Error en fallback de estadísticas: $e2');
+        return {};
+      }
+    }
+  }
+
+  // Nuevo método para obtener datos del dashboard
+  Future<Map<String, dynamic>> getDashboardData() async {
+    try {
+      print('📊 Obteniendo datos del dashboard...');
+      
+      final response = await client.rpc('get_dashboard_data');
+      
+      if (response != null) {
+        print('✅ Datos del dashboard obtenidos: $response');
+        return Map<String, dynamic>.from(response);
+      }
+      
+      return {};
+    } catch (e) {
+      print('❌ Error al obtener datos del dashboard: $e');
       return {};
     }
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -25,6 +26,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   String _searchQuery = '';
   String? _selectedFilter;
   bool _isLoading = false;
+  Timer? _debounceTimer;
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -46,8 +48,14 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     ));
     
     _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
+      // Cancelar el timer anterior si existe
+      _debounceTimer?.cancel();
+      
+      // Crear un nuevo timer con retraso de 300ms
+      _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+        setState(() {
+          _searchQuery = _searchController.text;
+        });
       });
     });
     
@@ -56,6 +64,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _animationController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -121,9 +130,11 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
         // Usar datos del snapshot
         final ordenesData = snapshot.data ?? [];
         var ordenes = ordenesData.where((orden) {
-          return orden.cliente.nombre
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase());
+          // Mejorar búsqueda: buscar en nombre del cliente, ID de orden y notas
+          final searchLower = _searchQuery.toLowerCase();
+          return orden.cliente.nombre.toLowerCase().contains(searchLower) ||
+                 orden.id.toLowerCase().contains(searchLower) ||
+                 (orden.notas?.toLowerCase().contains(searchLower) ?? false);
         }).toList();
 
     // Aplicar filtro por estado
@@ -138,9 +149,13 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
         case 'terminado':
           ordenes = ordenes.where((o) => o.estado == 'terminado').toList();
           break;
+        case 'entregado':
+          ordenes = ordenes.where((o) => o.estado == 'entregado').toList();
+          break;
         case 'por_entregar':
+          // Órdenes terminadas pero no entregadas
           ordenes = ordenes
-              .where((o) => o.estado == 'terminado' && o.estado != 'entregado')
+              .where((o) => o.estado == 'terminado')
               .toList();
           break;
       }
@@ -193,7 +208,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                   child: AppTextField(
                     controller: _searchController,
                     label: 'Buscar órdenes',
-                    hint: 'Buscar por cliente...',
+                    hint: 'Buscar por cliente, ID de orden o notas...',
                     prefixIcon: Icons.search_rounded,
                     suffixIcon: _searchQuery.isNotEmpty ? Icons.clear : null,
                     onSuffixTap: _searchQuery.isNotEmpty ? () {
@@ -319,6 +334,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
           _buildFilterChip('Pendientes', 'pendiente'),
           _buildFilterChip('En Proceso', 'en_proceso'),
           _buildFilterChip('Terminadas', 'terminado'),
+          _buildFilterChip('Entregadas', 'entregado'),
           _buildFilterChip('Por Entregar', 'por_entregar'),
         ],
       ),
