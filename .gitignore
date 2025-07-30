@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Archivos temporales de debugging SQL
+*.sql
+!supabase/migrations/*.sql
+!supabase/seed.sql
+
+# Logs temporales
+flutter_*.log
+test_*.md
+
+# Documentación temporal
+docs/auth_fixes.md
+docs/debug_*.md

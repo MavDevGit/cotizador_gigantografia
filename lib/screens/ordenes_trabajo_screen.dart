@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
-import '../services/services.dart';
 import '../utils/utils.dart';
 import '../widgets/widgets.dart';
 import 'screens.dart';
@@ -30,6 +26,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  
+  // Memoización de datos para evitar reconstrucciones innecesarias
+  List<OrdenTrabajo>? _cachedOrdenesData;
+  Future<List<OrdenTrabajo>>? _memoizedFuture;
 
   @override
   void initState() {
@@ -47,15 +47,21 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
       curve: AppAnimations.defaultCurve,
     ));
     
+    // Memoizar el Future al inicializar
+    final appState = Provider.of<AppState>(context, listen: false);
+    _memoizedFuture = appState.ordenes;
+    
     _searchController.addListener(() {
       // Cancelar el timer anterior si existe
       _debounceTimer?.cancel();
       
       // Crear un nuevo timer con retraso de 300ms
       _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-        setState(() {
-          _searchQuery = _searchController.text;
-        });
+        if (mounted) {
+          setState(() {
+            _searchQuery = _searchController.text;
+          });
+        }
       });
     });
     
@@ -79,95 +85,130 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     
     AppFeedback.hapticFeedback(HapticType.light);
     
-    await Future.delayed(const Duration(milliseconds: 1200));
-    
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    try {
+      // Limpiar el cache y reestablecer el Future memoizado
+      final appState = Provider.of<AppState>(context, listen: false);
       
-      AppFeedback.showToast(
-        context,
-        message: 'Órdenes actualizadas',
-        type: ToastType.success,
-      );
+      // Limpiar cache de órdenes usando el método público
+      appState.clearOrdenesCache();
+      _cachedOrdenesData = null;
+      _memoizedFuture = appState.ordenes; // Esto creará una nueva consulta
+      
+      // Esperar a que se complete la carga
+      await _memoizedFuture;
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        AppFeedback.showToast(
+          context,
+          message: 'Órdenes actualizadas',
+          type: ToastType.success,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        AppFeedback.showToast(
+          context,
+          message: 'Error al actualizar órdenes',
+          type: ToastType.error,
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = Provider.of<AppState>(context);
-    
-    return FutureBuilder<List<OrdenTrabajo>>(
-      future: appState.ordenes,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    // Solo escuchar cambios específicos, no todo el AppState
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        // Usar Future memoizado y cachear datos para evitar reconstrucciones
+        _memoizedFuture ??= appState.ordenes;
         
-        if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Error al cargar órdenes: ${snapshot.error}'),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() {}),
-                    child: Text('Reintentar'),
+        return FutureBuilder<List<OrdenTrabajo>>(
+          future: _memoizedFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && _cachedOrdenesData == null) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            
+            if (snapshot.hasError && _cachedOrdenesData == null) {
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      SizedBox(height: 16),
+                      Text('Error al cargar órdenes: ${snapshot.error}'),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Reestablecer el Future memoizado para recargar datos
+                          _memoizedFuture = appState.ordenes;
+                          _cachedOrdenesData = null;
+                          setState(() {});
+                        },
+                        child: Text('Reintentar'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          );
-        }
-        
-        // Usar datos del snapshot
-        final ordenesData = snapshot.data ?? [];
-        var ordenes = ordenesData.where((orden) {
-          // Mejorar búsqueda: buscar en nombre del cliente, ID de orden y notas
-          final searchLower = _searchQuery.toLowerCase();
-          return orden.cliente.nombre.toLowerCase().contains(searchLower) ||
-                 orden.id.toLowerCase().contains(searchLower) ||
-                 (orden.notas?.toLowerCase().contains(searchLower) ?? false);
-        }).toList();
+                ),
+              );
+            }
+            
+            // Usar datos del snapshot o datos cacheados
+            final ordenesData = snapshot.data ?? _cachedOrdenesData ?? [];
+            if (snapshot.hasData) {
+              _cachedOrdenesData = snapshot.data;
+            }
+            var ordenes = ordenesData.where((orden) {
+              // Mejorar búsqueda: buscar en nombre del cliente, ID de orden y notas
+              final searchLower = _searchQuery.toLowerCase();
+              return orden.cliente.nombre.toLowerCase().contains(searchLower) ||
+                     orden.id.toLowerCase().contains(searchLower) ||
+                     (orden.notas?.toLowerCase().contains(searchLower) ?? false);
+            }).toList();
 
-    // Aplicar filtro por estado
-    if (_selectedFilter != null) {
-      switch (_selectedFilter) {
-        case 'pendiente':
-          ordenes = ordenes.where((o) => o.estado == 'pendiente').toList();
-          break;
-        case 'en_proceso':
-          ordenes = ordenes.where((o) => o.estado == 'en_proceso').toList();
-          break;
-        case 'terminado':
-          ordenes = ordenes.where((o) => o.estado == 'terminado').toList();
-          break;
-        case 'entregado':
-          ordenes = ordenes.where((o) => o.estado == 'entregado').toList();
-          break;
-        case 'por_entregar':
-          // Órdenes terminadas pero no entregadas
-          ordenes = ordenes
-              .where((o) => o.estado == 'terminado')
-              .toList();
-          break;
-      }
-    }
+            // Aplicar filtro por estado
+            if (_selectedFilter != null) {
+              switch (_selectedFilter) {
+                case 'pendiente':
+                  ordenes = ordenes.where((o) => o.estado == 'pendiente').toList();
+                  break;
+                case 'en_proceso':
+                  ordenes = ordenes.where((o) => o.estado == 'en_proceso').toList();
+                  break;
+                case 'terminado':
+                  ordenes = ordenes.where((o) => o.estado == 'terminado').toList();
+                  break;
+                case 'entregado':
+                  ordenes = ordenes.where((o) => o.estado == 'entregado').toList();
+                  break;
+                case 'por_entregar':
+                  // Órdenes terminadas pero no entregadas
+                  ordenes = ordenes
+                      .where((o) => o.estado == 'terminado')
+                      .toList();
+                  break;
+              }
+            }
 
-    return Scaffold(
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: RefreshIndicator(
-          onRefresh: _refreshOrders,
-          child: CustomScrollView(
-            slivers: [
+            return Scaffold(
+              body: FadeTransition(
+                opacity: _fadeAnimation,
+                child: RefreshIndicator(
+                  onRefresh: _refreshOrders,
+                  child: CustomScrollView(
+                    slivers: [
               // Stats cards
               SliverToBoxAdapter(
                 child: Padding(
@@ -267,15 +308,17 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                   ),
                 ),
               
-              // Bottom spacing
-              const SliverToBoxAdapter(
-                child: SizedBox(height: AppSpacing.xxxl),
+                      // Bottom spacing
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpacing.xxxl),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
+            );
+          },
+        );
       },
     );
   }

@@ -53,12 +53,8 @@ Row Level Security (RLS) habilitado - cada empresa solo ve sus propios datos.
 - **Selectores de Fecha/Hora**: Configurados con semana iniciando el lunes
 
 ### 📱 Plataformas Soportadas
-- Android
-- iOS
-- Web
-- Windows
-- macOS
-- Linux
+- ✅ Android
+- ✅ iOS
 
 ## 🛠️ Tecnologías Utilizadas
 
@@ -74,7 +70,8 @@ Row Level Security (RLS) habilitado - cada empresa solo ve sus propios datos.
 ### Prerrequisitos
 - Flutter SDK (>=3.0.0)
 - Dart SDK
-- Android Studio / VS Code
+- Android Studio (para desarrollo Android)
+- Xcode (para desarrollo iOS, solo en macOS)
 - Git
 
 ### Pasos para instalar
@@ -97,7 +94,11 @@ flutter pub run build_runner build
 
 4. **Ejecutar la aplicación**
 ```bash
+# Para Android
 flutter run
+
+# Para iOS (solo en macOS)
+flutter run -d ios
 ```
 
 ## 📦 Dependencias Principales

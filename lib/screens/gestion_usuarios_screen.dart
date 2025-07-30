@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,6 +19,14 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   bool showArchived = false;
   bool _isLoading = false;
   List<Map<String, dynamic>> _usuarios = [];
+  
+  // Optimización de rendimiento: variables de memoización
+  List<Map<String, dynamic>>? _cachedUsuariosData;
+  List<Map<String, dynamic>>? _cachedUsuariosArchivadosData;
+  
+  // Controlador para búsqueda con debounce
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchTimer;
 
   void _showCustomSnackBar(String message, {IconData icon = Icons.info_outline, Color? color}) {
     final theme = Theme.of(context);
@@ -54,33 +63,82 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     super.initState();
     _fetchUsuarios();
   }
+  
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchTimer?.cancel();
+    super.dispose();
+  }
 
-  Future<void> _fetchUsuarios() async {
+  Future<void> _fetchUsuarios({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     final appState = Provider.of<AppState>(context, listen: false);
     final empresaId = appState.currentUser?.negocioId;
-    print('empresaId: $empresaId');
+    print('🔍 EmpresaId desde AppState: $empresaId');
+    
     if (empresaId == null) {
+      print('❌ EmpresaId es null, verificando usuario actual...');
+      print('   Usuario actual: ${appState.currentUser}');
       setState(() {
         _usuarios = [];
         _isLoading = false;
       });
       return;
     }
+    
+    // Verificar cache primero (solo si no es refresh forzado)
+    if (!forceRefresh) {
+      final cachedData = showArchived ? _cachedUsuariosArchivadosData : _cachedUsuariosData;
+      if (cachedData != null) {
+        print('📦 Usando datos del cache');
+        setState(() {
+          _usuarios = cachedData;
+          _isLoading = false;
+        });
+        return;
+      }
+    } else {
+      print('🔄 Refresh forzado - ignorando cache');
+    }
+    
     try {
+      print('🔍 Buscando usuarios para empresa: $empresaId');
+      print('🔍 Modo archivado: $showArchived');
+      
+      // Consulta DIRECTA sin RLS - seguridad manejada por filtro de empresa_id
       final response = await Supabase.instance.client
           .from('usuarios')
-          .select()
-          .eq('empresa_id', empresaId)
+          .select('id, nombre, email, rol, empresa_id, archivado, auth_user_id, created_at')
+          .eq('empresa_id', empresaId)  // Filtro de seguridad por empresa
           .eq('archivado', showArchived)
           .order('nombre', ascending: true);
-      print('Respuesta Supabase: $response');
+      
+      print('📊 Respuesta Supabase usuarios: $response');
+      print('📊 Total usuarios encontrados: ${response.length}');
+      
+      // Log detallado de cada usuario
+      for (var i = 0; i < response.length; i++) {
+        final usuario = response[i];
+        print('   ${i+1}. 👤 ${usuario['nombre']} - Rol: ${usuario['rol']} - Email: ${usuario['email']}');
+      }
+      
+      final usuarios = List<Map<String, dynamic>>.from(response);
+      
+      // Actualizar cache
+      if (showArchived) {
+        _cachedUsuariosArchivadosData = usuarios;
+      } else {
+        _cachedUsuariosData = usuarios;
+      }
+      
       setState(() {
-        _usuarios = List<Map<String, dynamic>>.from(response);
+        _usuarios = usuarios;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error en _fetchUsuarios: $e');
+      print('❌ Error en _fetchUsuarios: $e');
+      print('❌ Tipo de error: ${e.runtimeType}');
       setState(() {
         _usuarios = [];
         _isLoading = false;
@@ -102,7 +160,12 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
       ),
     );
     if (result == true) {
-      _fetchUsuarios();
+      print('🔄 Usuario guardado, limpiando cache y recargando...');
+      // Limpiar cache COMPLETAMENTE para forzar recarga
+      _cachedUsuariosData = null;
+      _cachedUsuariosArchivadosData = null;
+      // Recargar datos sin cache
+      await _fetchUsuarios(forceRefresh: true);
     }
   }
 
@@ -116,7 +179,11 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           .from('usuarios')
           .update({'archivado': newValue})
           .eq('id', usuario['id']);
-      _fetchUsuarios();
+      
+      // Limpiar cache para forzar recarga
+      _cachedUsuariosData = null;
+      _cachedUsuariosArchivadosData = null;
+      _fetchUsuarios(forceRefresh: true);
       if (newValue) {
         _showCustomSnackBar('Usuario archivado', icon: Icons.archive, color: Theme.of(context).colorScheme.error);
       } else {
@@ -129,7 +196,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = Provider.of<AppState>(context);
+    final appState = Provider.of<AppState>(context, listen: false);
     final isAdmin = appState.currentUser?.rol == 'admin';
     final usuariosToShow = _searchText.isEmpty
         ? _usuarios
@@ -156,13 +223,27 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         title: Text(showArchived ? 'Usuarios Archivados' : 'Gestionar Usuarios'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar',
+            onPressed: () {
+              print('🔄 Refresh manual solicitado');
+              // Limpiar cache completamente
+              _cachedUsuariosData = null;
+              _cachedUsuariosArchivadosData = null;
+              _fetchUsuarios(forceRefresh: true);
+            },
+          ),
+          IconButton(
             icon: Icon(showArchived ? Icons.inventory_2_outlined : Icons.archive_outlined),
             tooltip: showArchived ? 'Ver Activos' : 'Ver Archivados',
             onPressed: () {
               setState(() {
                 showArchived = !showArchived;
+                // Limpiar cache para forzar recarga
+                _cachedUsuariosData = null;
+                _cachedUsuariosArchivadosData = null;
               });
-              _fetchUsuarios();
+              _fetchUsuarios(forceRefresh: true);
             },
           )
         ],
@@ -173,6 +254,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: TextField(
+                controller: _searchController,
                 decoration: InputDecoration(
                   labelText: 'Buscar Usuario',
                   prefixIcon: Icon(
@@ -211,7 +293,15 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                     fontSize: 14,
                   ),
                 ),
-                onChanged: (value) => setState(() => _searchText = value),
+                onChanged: (value) {
+                  // Optimización: debounce search para evitar rebuilds excesivos
+                  _searchTimer?.cancel();
+                  _searchTimer = Timer(const Duration(milliseconds: 300), () {
+                    if (mounted) {
+                      setState(() => _searchText = value);
+                    }
+                  });
+                },
               ),
             ),
           Expanded(
@@ -229,7 +319,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              showArchived ? 'No hay usuarios archivados' : 'No hay usuarios',
+                              showArchived ? 'No hay usuarios archivados' : 'Solo tú estás registrado como administrador',
                               style: UIUtils.getTitleStyle(context).copyWith(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
@@ -237,8 +327,18 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                             if (!showArchived && isAdmin) ...[
                               const SizedBox(height: 8),
                               Text(
-                                'Presiona el botón + para agregar un usuario',
+                                'Crea usuarios empleados para que puedan gestionar órdenes',
                                 style: UIUtils.getSubtitleStyle(context),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Presiona + para agregar empleados',
+                                style: UIUtils.getSubtitleStyle(context).copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ],
@@ -267,9 +367,34 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                                 usuario['nombre'] ?? '',
                                 style: UIUtils.getTitleStyle(context),
                               ),
-                              subtitle: Text(
-                                usuario['email'] ?? '',
-                                style: UIUtils.getSubtitleStyle(context),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    usuario['email'] ?? '',
+                                    style: UIUtils.getSubtitleStyle(context),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: usuario['rol'] == 'admin' 
+                                          ? Theme.of(context).colorScheme.errorContainer
+                                          : Theme.of(context).colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      usuario['rol']?.toUpperCase() ?? 'EMPLEADO',
+                                      style: UIUtils.getSubtitleStyle(context).copyWith(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: usuario['rol'] == 'admin'
+                                            ? Theme.of(context).colorScheme.onErrorContainer
+                                            : Theme.of(context).colorScheme.onPrimaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               trailing: isAdmin
                                   ? Row(

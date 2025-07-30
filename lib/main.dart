@@ -7,7 +7,6 @@ import 'package:timezone/data/latest.dart' as tz;
 
 // Importamos solo AppState (con Supabase)
 import 'app_state/app_state.dart';
-import 'models/models.dart';
 import 'screens/screens.dart';
 import 'services/services.dart';
 import 'utils/utils.dart';
@@ -16,7 +15,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/supabase_service.dart';
-import 'screens/verificando_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -73,7 +71,6 @@ void _setupAuthListeners(AppState appState) {
     
     // Manejar cierre de sesión y expiración
     if (event == AuthChangeEvent.signedOut || 
-        event == AuthChangeEvent.userDeleted ||
         session == null || 
         user == null) {
       
@@ -191,7 +188,7 @@ Future<void> _handleAuthCallback(Uri uri, AppState appState) async {
           final usuarioCreado = await supabaseService.createUsuario(
             email: pendingEmail,
             empresaId: empresaId,
-            authUserId: session!.user!.id,
+            authUserId: session?.user?.id ?? '',
             nombre: pendingNombre,
             rol: 'admin', // Primer usuario es admin
           );

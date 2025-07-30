@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,6 @@ import 'screens.dart';
 
 class GestionClientesScreen extends GestionScreen<Cliente> {
   const GestionClientesScreen({super.key});
-  
   @override
   _GestionClientesScreenState createState() => _GestionClientesScreenState();
 }
@@ -198,6 +198,67 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                 },
               ),
             ),
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(showArchived ? 'Gestionar Clientes (Archivados)' : 'Gestionar Clientes'),
+        actions: [
+          IconButton(
+            icon: Icon(showArchived
+                ? Icons.inventory_2_outlined
+                : Icons.archive_outlined),
+            tooltip: showArchived ? 'Ver Activos' : 'Ver Archivados',
+            onPressed: () => setState(() => showArchived = !showArchived),
+          )
+        ],
+      ),
+      body: Column(
+        children: [
+          if (!showArchived && clientesUnicos.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                decoration: InputDecoration(
+                  labelText: 'Buscar Cliente',
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  hintText: 'Buscar cliente por nombre...',
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  labelStyle: UIUtils.getSubtitleStyle(context),
+                  hintStyle: UIUtils.getSubtitleStyle(context),
+                  floatingLabelStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 14,
+                  ),
+                ),
+                onChanged: (value) => setState(() => _searchText = value),
+              ),
+            ),
           
           // Lista de clientes
           Expanded(
@@ -221,30 +282,28 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                         if (!showArchived) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Presiona + para añadir tu primer cliente',
+                            'Presiona el botón + para agregar un cliente',
                             style: UIUtils.getSubtitleStyle(context),
                           ),
-                        ]
+                        ],
                       ],
                     ),
                   )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16.0),
+                : ListView.builder(
                     itemCount: clientesToShow.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                     itemBuilder: (context, index) => Card(
-                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                          child: Text(
-                            clientesToShow[index].nombre.isNotEmpty
-                                ? clientesToShow[index].nombre[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.person_rounded,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
                           ),
                         ),
                         title: Text(
@@ -252,21 +311,26 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                           style: UIUtils.getTitleStyle(context),
                         ),
                         subtitle: Text(
-                          clientesToShow[index].email?.isNotEmpty == true
-                              ? clientesToShow[index].email!
-                              : 'Sin email',
+                          'Contacto: ${clientesToShow[index].contacto}',
                           style: UIUtils.getSubtitleStyle(context),
                         ),
-                        trailing: !showArchived
+                        trailing: showArchived
                             ? IconButton(
                                 icon: Icon(
-                                  Icons.edit_rounded,
+                                  Icons.unarchive,
+                                  color: UIUtils.getSuccessColor(context),
+                                ),
+                                onPressed: () => appState.restoreCliente(clientesToShow[index]),
+                                tooltip: "Restaurar",
+                              )
+                            : IconButton(
+                                icon: Icon(
+                                  Icons.edit,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
                                 onPressed: () => _showClienteDialog(context, cliente: clientesToShow[index]),
                                 tooltip: "Editar",
-                              )
-                            : null,
+                              ),
                         onTap: () {
                           if (!showArchived) {
                             Navigator.push(
@@ -287,6 +351,8 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
               onPressed: () => _showClienteDialog(context),
               child: const Icon(Icons.add),
             ),
+    );
+      },
     );
   }
 }

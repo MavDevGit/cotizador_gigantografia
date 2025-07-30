@@ -39,12 +39,20 @@ class _AuthWrapperState extends State<AuthWrapper> {
         _isProcessingSession = true;
       });
       
-      // Esperar a que se complete la inicialización
-      while (!appState.isInitialized) {
+      // Esperar a que se complete la inicialización con timeout
+      int attempts = 0;
+      const maxAttempts = 50; // 5 segundos máximo
+      while (!appState.isInitialized && attempts < maxAttempts) {
         await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
       }
       
-      print('✅ Inicialización completada');
+      if (attempts >= maxAttempts) {
+        print('⚠️ Timeout esperando inicialización, continuando de todos modos');
+      } else {
+        print('✅ Inicialización completada');
+      }
+      
       setState(() {
         _isProcessingSession = false;
       });

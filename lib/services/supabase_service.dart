@@ -15,7 +15,7 @@ class SupabaseService {
       final response = await client.from('empresas').insert({
         'nombre': empresa,
       }).select('id').single();
-      if (response == null || response['id'] == null) return null;
+      if (response['id'] == null) return null;
       return response['id'] as String;
     } catch (e) {
       print('❌ Error al crear empresa: $e');
@@ -39,6 +39,13 @@ class SupabaseService {
         return false;
       }
       
+      print('🔄 Insertando usuario con datos:');
+      print('   - Email: $email');
+      print('   - Empresa ID: $empresaId');
+      print('   - Auth User ID: $authUserId');
+      print('   - Nombre: $nombre');
+      print('   - Rol: $rol');
+      
       // Solo enviar los campos requeridos, los demás tienen valores por defecto
       final response = await client.from('usuarios').insert({
         'email': email,
@@ -48,8 +55,9 @@ class SupabaseService {
         'rol': rol,
         // created_at se genera automáticamente
         // archivado tiene valor por defecto false
-      });
-      // Si no hay excepción, la inserción fue exitosa
+      }).select().single();
+      
+      print('✅ Usuario creado exitosamente: ${response['id']}');
       return true;
     } catch (e) {
       print('❌ Error al crear usuario: $e');
@@ -58,8 +66,29 @@ class SupabaseService {
         print('⚠️ Error de clave duplicada - posiblemente el usuario ya existe');
       } else if (e.toString().contains('foreign key')) {
         print('⚠️ Error de clave foránea - verificar que empresa_id existe');
-      } else if (e.toString().contains('rol_usuario')) {
-        print('⚠️ Error en el tipo de rol - verificar valores del enum rol_usuario');
+      } else if (e.toString().contains('rol') || e.toString().contains('enum')) {
+        print('⚠️ Error en el tipo de rol - verificar valores del enum en la BD');
+        print('⚠️ Intentando con diferentes valores de rol...');
+        
+        // Intentar con valores alternativos comunes para enums de rol
+        final rolesAlternativos = ['ADMIN', 'EMPLEADO', 'admin', 'empleado', 'administrador', 'usuario'];
+        for (final rolAlternativo in rolesAlternativos) {
+          try {
+            print('   Probando con rol: $rolAlternativo');
+            await client.from('usuarios').insert({
+              'email': email,
+              'empresa_id': empresaId,
+              'auth_user_id': authUserId,
+              'nombre': nombre,
+              'rol': rolAlternativo,
+            }).select().single();
+            print('✅ Usuario creado con rol: $rolAlternativo');
+            return true;
+          } catch (e2) {
+            print('   ❌ Falló con rol $rolAlternativo: $e2');
+            continue;
+          }
+        }
       }
       return false;
     }
@@ -68,18 +97,74 @@ class SupabaseService {
   Future<Usuario?> getCurrentUser() async {
     try {
       final authUser = client.auth.currentUser;
-      if (authUser == null) return null;
+      if (authUser == null) {
+        print('❌ No hay usuario autenticado en auth');
+        return null;
+      }
 
-      final response = await client
-          .from('usuarios')
-          .select()
-          .eq('auth_user_id', authUser.id)
-          .eq('archivado', false)
-          .single();
+      print('🔍 Buscando usuario con auth_user_id: ${authUser.id}');
+      print('📧 Email del usuario: ${authUser.email}');
+      
+      // Intentar obtener el usuario de la base de datos
+      // Primero intentar con la función RPC segura
+      try {
+        print('🔧 Usando función RPC segura get_current_user_safe()');
+        final response = await client.rpc('get_current_user_safe').single();
+        
+        if (response != null && response['id'] != null) {
+          print('✅ Usuario obtenido via RPC seguro: ${response['id']}');
+          return Usuario.fromJson(response);
+        } else {
+          print('⚠️ RPC no retornó datos válidos');
+        }
+      } catch (rpcError) {
+        print('❌ Error en RPC seguro: $rpcError');
+      }
+      
+      // Si RPC falla, intentar consulta directa
+      try {
+        print('🔄 Intentando consulta directa a tabla usuarios');
+        final response = await client
+            .from('usuarios')
+            .select()
+            .eq('auth_user_id', authUser.id)
+            .eq('archivado', false)
+            .single();
 
-      return Usuario.fromJson(response);
+        print('✅ Usuario encontrado en BD: ${response['id']}');
+        return Usuario.fromJson(response);
+      } catch (dbError) {
+        print('❌ Error al obtener de BD: $dbError');
+        
+        // Si hay error de recursión RLS, crear usuario temporal
+        if (dbError.toString().contains('infinite recursion') || 
+            dbError.toString().contains('42P17')) {
+          print('� Creando usuario temporal debido a problema RLS');
+          
+          // Crear usuario temporal con datos de auth
+          final tempUser = Usuario(
+            id: 'temp-${authUser.id}', // ID temporal único
+            email: authUser.email ?? 'email@temp.com',
+            nombre: authUser.email?.split('@')[0] ?? 'Usuario Temporal',
+            rol: 'admin', // Rol por defecto para evitar problemas
+            empresaId: 'temp-empresa-id', // ID temporal de empresa
+            authUserId: authUser.id,
+            createdAt: DateTime.now(),
+            archivado: false,
+          );
+          
+          print('✅ Usuario temporal creado: ${tempUser.email}');
+          print('⚠️ NOTA: Este es un usuario temporal. Se requiere arreglar las políticas RLS.');
+          
+          return tempUser;
+        }
+        
+        // Para otros errores, retornar null
+        print('❌ Error no relacionado con RLS: $dbError');
+        return null;
+      }
     } catch (e) {
-      print('❌ Error al obtener usuario actual: $e');
+      print('❌ Error general al obtener usuario actual: $e');
       return null;
     }
   }

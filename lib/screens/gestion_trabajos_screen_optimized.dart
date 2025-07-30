@@ -185,7 +185,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
     final trabajosUnicos = uniqueTrabajos.values.toList();
     final trabajosToShow = _searchText.isEmpty
         ? trabajosUnicos
-        : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
+        : trabajosUnicos.where((t) => t.titulo.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
@@ -213,7 +213,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                     Icons.search_rounded,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  hintText: 'Buscar trabajo por nombre...',
+                  hintText: 'Buscar trabajo por título...',
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
@@ -305,20 +305,22 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                             ),
                           ),
                           title: Text(
-                            trabajo.nombre,
+                            trabajo.titulo,
                             style: UIUtils.getTitleStyle(context),
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Trabajo de impresión',
+                                trabajo.descripcion.isNotEmpty
+                                    ? trabajo.descripcion
+                                    : 'Sin descripción',
                                 style: UIUtils.getSubtitleStyle(context),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                '\$${trabajo.precioM2.toStringAsFixed(2)}/m²',
+                                '\$${trabajo.precio.toStringAsFixed(2)}',
                                 style: UIUtils.getSubtitleStyle(context).copyWith(
                                   color: Theme.of(context).colorScheme.primary,
                                   fontWeight: FontWeight.bold,

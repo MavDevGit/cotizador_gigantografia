@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,7 +7,6 @@ import '../models/trabajo.dart';
 import '../models/usuario.dart';
 import '../models/orden_trabajo.dart';
 import '../services/supabase_service.dart';
-import '../utils/utils.dart';
 
 class AppState extends ChangeNotifier {
   Usuario? _currentUser;
@@ -111,18 +108,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final user = await _supabaseService.getCurrentUser();
-      if (user != null) {
-        _currentUser = user;
-        await _loadAllData();
-        notifyListeners();
-        print('✅ Sesión restaurada exitosamente');
+      // Primero verificar si hay una sesión activa en Supabase
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session?.user != null) {
+        print('🔐 Sesión encontrada en Supabase para: ${session?.user?.email}');
+        // Intentar obtener los datos del usuario de la base de datos
+        final user = await _supabaseService.getCurrentUser();
+        if (user != null) {
+          _currentUser = user;
+          await _loadAllData();
+          notifyListeners();
+          print('✅ Sesión restaurada exitosamente para: ${user.nombre}');
+          return;
+        } else {
+          print('⚠️ Sesión de Supabase encontrada pero usuario no existe en BD');
+          // Cerrar sesión si el usuario no existe en nuestra BD
+          await Supabase.instance.client.auth.signOut();
+        }
       } else {
-        print('ℹ️ No hay sesión activa para restaurar');
+        print('ℹ️ No hay sesión activa en Supabase');
       }
     } catch (e) {
       print('⚠️ Error restaurando sesión: $e');
+      // En caso de error, asegurar que no hay sesión corrupta
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
     }
+    
+    print('ℹ️ No se pudo restaurar sesión válida');
   }
 
   Future<void> _loadAllData() async {
@@ -136,20 +150,33 @@ class AppState extends ChangeNotifier {
 
   Future<bool> login(String email, String password) async {
     try {
+      print('🔐 Intentando login para: $email');
+      
       final response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
       if (response.user != null) {
+        print('✅ Autenticación exitosa en Supabase');
+        
+        // Intentar obtener los datos del usuario de la base de datos
         final user = await _supabaseService.getCurrentUser();
         if (user != null) {
           _currentUser = user;
           await _loadAllData();
           notifyListeners();
+          print('✅ Login completo para: ${user.nombre}');
           return true;
+        } else {
+          print('⚠️ Usuario autenticado pero no encontrado en BD');
+          // Cerrar sesión si el usuario no existe en nuestra BD
+          await Supabase.instance.client.auth.signOut();
+          return false;
         }
       }
+      
+      print('❌ Credenciales incorrectas');
       return false;
     } catch (e) {
       print('⚠️ Error en login: $e');
@@ -250,6 +277,36 @@ class AppState extends ChangeNotifier {
 
   // Getter síncrono para compatibilidad
   List<OrdenTrabajo> get ordenesSync => _ordenesCache ?? [];
+
+  // Método para limpiar cache de órdenes y forzar recarga
+  void clearOrdenesCache() {
+    _ordenesCache = null;
+    notifyListeners();
+  }
+
+  // Método para limpiar cache de clientes y forzar recarga
+  void clearClientesCache() {
+    _clientesCache = null;
+    notifyListeners();
+  }
+
+  // Método para limpiar cache de clientes archivados y forzar recarga
+  void clearClientesArchivadosCache() {
+    _clientesArchivadosCache = null;
+    notifyListeners();
+  }
+
+  // Método para limpiar cache de trabajos y forzar recarga
+  void clearTrabajosCache() {
+    _trabajosCache = null;
+    notifyListeners();
+  }
+
+  // Método para limpiar cache de trabajos archivados y forzar recarga
+  void clearTrabajosArchivadosCache() {
+    _trabajosArchivadosCache = null;
+    notifyListeners();
+  }
 
   // === MÉTODOS CRUD PARA CLIENTES ===
 

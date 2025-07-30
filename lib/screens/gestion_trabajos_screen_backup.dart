@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
@@ -59,39 +58,12 @@ abstract class GestionScreenState<T>
 
 class GestionTrabajosScreen extends GestionScreen<Trabajo> {
   const GestionTrabajosScreen({super.key});
-  
   @override
   _GestionTrabajosScreenState createState() => _GestionTrabajosScreenState();
 }
 
 class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
   String _searchText = '';
-  
-  // Optimización de rendimiento: variables de memoización
-  List<Trabajo>? _cachedTrabajosData;
-  List<Trabajo>? _cachedTrabajosArchivadosData;
-  Future<List<Trabajo>>? _memoizedTrabajosFuture;
-  Future<List<Trabajo>>? _memoizedTrabajosArchivadosFuture;
-  
-  // Controlador para búsqueda con debounce
-  final TextEditingController _searchController = TextEditingController();
-  Timer? _searchTimer;
-  
-  @override
-  void initState() {
-    super.initState();
-    final appState = Provider.of<AppState>(context, listen: false);
-    // Memoizar los Futures para evitar recreación innecesaria
-    _memoizedTrabajosFuture = appState.trabajos;
-    _memoizedTrabajosArchivadosFuture = appState.trabajosArchivados;
-  }
-  
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchTimer?.cancel();
-    super.dispose();
-  }
   
   void _showTrabajoDialog(BuildContext context, {Trabajo? trabajo}) {
     showDialog(
@@ -121,23 +93,12 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
 
   @override
   Widget build(BuildContext context) {
-    // Optimización: usar listen: false para evitar rebuilds innecesarios
-    final appState = Provider.of<AppState>(context, listen: false);
-    
-    // Usar futures memoizados para evitar recreación
-    final Future<List<Trabajo>> currentFuture = showArchived 
-        ? (_memoizedTrabajosArchivadosFuture ?? appState.trabajosArchivados)
-        : (_memoizedTrabajosFuture ?? appState.trabajos);
+    final appState = Provider.of<AppState>(context);
     
     return FutureBuilder<List<Trabajo>>(
-      future: currentFuture,
+      future: showArchived ? appState.trabajosArchivados : appState.trabajos,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Mostrar datos cache si están disponibles
-          final cachedData = showArchived ? _cachedTrabajosArchivadosData : _cachedTrabajosData;
-          if (cachedData != null) {
-            return _buildScaffoldWithData(context, cachedData);
-          }
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -163,34 +124,29 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
           );
         }
         
-        // Actualizar cache y devolver interfaz con datos
-        final trabajosData = snapshot.data ?? [];
-        if (showArchived) {
-          _cachedTrabajosArchivadosData = trabajosData;
-        } else {
-          _cachedTrabajosData = trabajosData;
+        // Filtrar trabajos únicos manualmente
+        final uniqueTrabajos = <String, Trabajo>{};
+        final allTrabajos = snapshot.data ?? [];
+        for (var trabajo in allTrabajos) {
+          uniqueTrabajos[trabajo.id] = trabajo;
         }
-        
-        return _buildScaffoldWithData(context, trabajosData);
-      },
-    );
-  }
-  
-  Widget _buildScaffoldWithData(BuildContext context, List<Trabajo> allTrabajos) {
-    // Filtrar trabajos únicos manualmente
-    final uniqueTrabajos = <String, Trabajo>{};
-    for (var trabajo in allTrabajos) {
-      uniqueTrabajos[trabajo.id] = trabajo;
-    }
-    final trabajosUnicos = uniqueTrabajos.values.toList();
-    final trabajosToShow = _searchText.isEmpty
-        ? trabajosUnicos
-        : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
+        final trabajosUnicos = uniqueTrabajos.values.toList();
+        final trabajosToShow = _searchText.isEmpty
+            ? trabajosUnicos
+            : trabajosUnicos.where((t) => t.nombre.toLowerCase().contains(_searchText.toLowerCase())).toList();
     
     return Scaffold(
       appBar: AppBar(
         title: Text(showArchived ? 'Gestionar Trabajos (Archivados)' : 'Gestionar Trabajos'),
         actions: [
+          if (!showArchived && appState.tieneOrdenPersonalizadoTrabajos)
+            IconButton(
+              icon: Icon(Icons.shuffle_rounded),
+              tooltip: 'Restablecer orden alfabético',
+              onPressed: () {
+                appState.resetOrdenPersonalizadoTrabajos();
+              },
+            ),
           IconButton(
             icon: Icon(showArchived
                 ? Icons.inventory_2_outlined
@@ -206,7 +162,6 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: TextField(
-                controller: _searchController,
                 decoration: InputDecoration(
                   labelText: 'Buscar Trabajo',
                   prefixIcon: Icon(
@@ -245,19 +200,54 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                     fontSize: 14,
                   ),
                 ),
-                onChanged: (value) {
-                  // Optimización: debounce search para evitar rebuilds excesivos
-                  _searchTimer?.cancel();
-                  _searchTimer = Timer(const Duration(milliseconds: 300), () {
-                    if (mounted) {
-                      setState(() => _searchText = value);
-                    }
-                  });
-                },
+                onChanged: (value) => setState(() => _searchText = value),
               ),
             ),
           
-          // Lista de trabajos
+          // Instrucciones de reordenamiento
+          if (!showArchived && trabajosToShow.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: appState.tieneOrdenPersonalizadoTrabajos 
+                    ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+                    : UIUtils.getWarningColor(context).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    appState.tieneOrdenPersonalizadoTrabajos 
+                        ? Icons.sort_rounded 
+                        : Icons.drag_handle_rounded,
+                    size: 20,
+                    color: appState.tieneOrdenPersonalizadoTrabajos 
+                        ? Theme.of(context).colorScheme.primary
+                        : UIUtils.getWarningColor(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      appState.tieneOrdenPersonalizadoTrabajos
+                          ? 'Orden personalizado activo - Arrastra para modificar'
+                          : 'Mantén presionado y arrastra para reordenar',
+                      style: UIUtils.getSubtitleStyle(context).copyWith(
+                        fontSize: 12,
+                        color: appState.tieneOrdenPersonalizadoTrabajos 
+                            ? Theme.of(context).colorScheme.primary
+                            : UIUtils.getWarningColor(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          const SizedBox(height: 8),
+          
+          // Lista de trabajos reordenable
           Expanded(
             child: trabajosToShow.isEmpty
                 ? Center(
@@ -269,7 +259,7 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                           size: 64,
                           color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
                         ),
-                        const SizedBox(height: 16),
+                        FormSpacing.verticalLarge(),
                         Text(
                           showArchived ? 'No hay trabajos archivados' : 'No hay trabajos',
                           style: UIUtils.getTitleStyle(context).copyWith(
@@ -277,83 +267,83 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
                           ),
                         ),
                         if (!showArchived) ...[
-                          const SizedBox(height: 8),
+                          FormSpacing.verticalSmall(),
                           Text(
-                            'Presiona + para añadir tu primer trabajo',
+                            'Presiona el botón + para agregar un trabajo',
                             style: UIUtils.getSubtitleStyle(context),
                           ),
-                        ]
+                        ],
                       ],
                     ),
                   )
-                : ReorderableListView.builder(
-                    padding: const EdgeInsets.all(16.0),
-                    itemCount: trabajosToShow.length,
-                    onReorder: _reorderTrabajos,
-                    itemBuilder: (context, index) {
-                      final trabajo = trabajosToShow[index];
-                      return Card(
-                        key: ValueKey(trabajo.id),
-                        elevation: 2,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                            child: Icon(
-                              Icons.work_rounded,
-                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                : showArchived 
+                    ? ListView.builder(
+                        itemCount: trabajosToShow.length,
+                        itemBuilder: (context, index) => Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.work_rounded,
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                            title: Text(
+                              trabajosToShow[index].nombre,
+                              style: UIUtils.getTitleStyle(context),
+                            ),
+                            subtitle: Text(
+                              'Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}',
+                              style: UIUtils.getSubtitleStyle(context),
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                Icons.unarchive,
+                                color: UIUtils.getSuccessColor(context),
+                              ),
+                              onPressed: () => appState.restoreTrabajo(trabajosToShow[index]),
+                              tooltip: "Restaurar",
                             ),
                           ),
-                          title: Text(
-                            trabajo.nombre,
-                            style: UIUtils.getTitleStyle(context),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Trabajo de impresión',
-                                style: UIUtils.getSubtitleStyle(context),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                '\$${trabajo.precioM2.toStringAsFixed(2)}/m²',
-                                style: UIUtils.getSubtitleStyle(context).copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: !showArchived
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit_rounded,
-                                        color: Theme.of(context).colorScheme.primary,
-                                      ),
-                                      onPressed: () => _showTrabajoDialog(context, trabajo: trabajo),
-                                      tooltip: "Editar",
-                                    ),
-                                    Icon(
-                                      Icons.drag_handle_rounded,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ],
-                                )
-                              : null,
-                          onTap: () {
-                            if (!showArchived) {
-                              _showTrabajoDialog(context, trabajo: trabajo);
-                            }
-                          },
                         ),
-                      );
-                    },
-                  ),
+                      )
+                    : ReorderableListView.builder(
+                        itemCount: trabajosToShow.length,
+                        onReorder: _reorderTrabajos,
+                        itemBuilder: (context, index) => Card(
+                          key: ValueKey(trabajosToShow[index].id),
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Icon(
+                              Icons.drag_handle_rounded,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            title: Text(
+                              trabajosToShow[index].nombre,
+                              style: UIUtils.getTitleStyle(context),
+                            ),
+                            subtitle: Text(
+                              'Precio m²: Bs ${trabajosToShow[index].precioM2.toStringAsFixed(2)}',
+                              style: UIUtils.getSubtitleStyle(context),
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                Icons.edit,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              onPressed: () => _showTrabajoDialog(context, trabajo: trabajosToShow[index]),
+                              tooltip: "Editar",
+                            ),
+                          ),
+                        ),
+                      ),
           ),
         ],
       ),
@@ -363,6 +353,8 @@ class _GestionTrabajosScreenState extends GestionScreenState<Trabajo> {
               onPressed: () => _showTrabajoDialog(context),
               child: const Icon(Icons.add),
             ),
+    );
+      },
     );
   }
 }

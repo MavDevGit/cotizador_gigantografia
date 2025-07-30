@@ -252,8 +252,8 @@ class _GestionClientesScreenState extends GestionScreenState<Cliente> {
                           style: UIUtils.getTitleStyle(context),
                         ),
                         subtitle: Text(
-                          clientesToShow[index].email?.isNotEmpty == true
-                              ? clientesToShow[index].email!
+                          clientesToShow[index].email.isNotEmpty
+                              ? clientesToShow[index].email
                               : 'Sin email',
                           style: UIUtils.getSubtitleStyle(context),
                         ),
