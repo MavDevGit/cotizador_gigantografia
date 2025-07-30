@@ -284,6 +284,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Método específico para invalidar cache después de eliminar
+  void invalidateOrdenesCache() {
+    _ordenesCache = null;
+    notifyListeners();
+  }
+
   // Método para limpiar cache de clientes y forzar recarga
   void clearClientesCache() {
     _clientesCache = null;
@@ -436,10 +442,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteOrden(String ordenId) async {
+    print('🔄 deleteOrden: Iniciando eliminación para orden $ordenId');
+    
     final success = await _supabaseService.deleteOrden(ordenId);
     if (success) {
-      _ordenesCache = null; // Invalidar cache
+      print('✅ deleteOrden: Orden eliminada exitosamente de la base de datos');
+      
+      // Remover la orden del cache inmediatamente sin invalidar todo
+      if (_ordenesCache != null) {
+        _ordenesCache!.removeWhere((orden) => orden.id == ordenId);
+        print('🔄 deleteOrden: Orden removida del cache local');
+      }
+      
       notifyListeners();
+      print('🔄 deleteOrden: Notificación enviada a listeners');
+    } else {
+      print('❌ deleteOrden: Error al eliminar la orden');
     }
   }
 

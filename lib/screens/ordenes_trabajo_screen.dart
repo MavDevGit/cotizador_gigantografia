@@ -17,7 +17,7 @@ class OrdenesTrabajoScreen extends StatefulWidget {
 }
 
 class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen> 
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedFilter;
@@ -30,10 +30,27 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   // Memoización de datos para evitar reconstrucciones innecesarias
   List<OrdenTrabajo>? _cachedOrdenesData;
   Future<List<OrdenTrabajo>>? _memoizedFuture;
+  
+  // Set para rastrear órdenes eliminadas localmente
+  final Set<String> _deletedOrderIds = <String>{};
+  
+  // Flag para detectar si acabamos de editar una orden
+  bool _justEditedOrder = false;
+  
+  // Timestamp de la última actualización
+  DateTime? _lastUpdateTime;
+  
+  // Retry counter para manejar errores de red
+  int _retryCount = 0;
+  
+  // Orden específica que se está editando (para tracking)
+  String? _editingOrderId;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    
     _animationController = AnimationController(
       duration: AppAnimations.medium,
       vsync: this,
@@ -70,10 +87,149 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _debounceTimer?.cancel();
     _animationController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Solo refrescar si la app vuelve a primer plano después de un largo tiempo
+    // y si acabamos de editar una orden (como plan de emergencia)
+    if (state == AppLifecycleState.resumed && _justEditedOrder && mounted) {
+      print('📱 App resumed - ejecutando refresh de emergencia');
+      _justEditedOrder = false;
+      
+      // Pequeño delay para verificar si realmente necesitamos actualizar
+      Timer(const Duration(seconds: 1), () {
+        if (mounted && _cachedOrdenesData != null) {
+          // Solo actualizar si han pasado más de 10 segundos desde la última actualización
+          final now = DateTime.now();
+          final timeSinceLastUpdate = _lastUpdateTime != null 
+            ? now.difference(_lastUpdateTime!).inSeconds 
+            : 999;
+            
+          if (timeSinceLastUpdate > 10) {
+            print('⏰ Ejecutando refresh de emergencia - ${timeSinceLastUpdate}s desde última actualización');
+            _forceRefreshData();
+          } else {
+            print('⏭️ Saltando refresh - solo ${timeSinceLastUpdate}s desde última actualización');
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _forceRefreshData() async {
+    if (!mounted) return;
+    
+    print('🔄 Forzando actualización de datos...');
+    
+    final appState = Provider.of<AppState>(context, listen: false);
+    appState.clearOrdenesCache();
+    
+    setState(() {
+      _isLoading = true;
+      _cachedOrdenesData = null;
+      _memoizedFuture = null;
+    });
+    
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    if (mounted) {
+      setState(() {
+        _memoizedFuture = appState.ordenes;
+      });
+    }
+  }
+
+  // Método mejorado con retry y validación específica
+  Future<void> _forceRefreshWithRetry() async {
+    if (!mounted) return;
+    
+    const maxRetries = 3;
+    
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        print('🔄 Intento $attempt/$maxRetries - Refrescando datos...');
+        
+        final appState = Provider.of<AppState>(context, listen: false);
+        appState.clearOrdenesCache();
+        
+        setState(() {
+          _isLoading = true;
+          _cachedOrdenesData = null;
+          _memoizedFuture = null;
+        });
+        
+        // Crear nuevo Future con timeout progresivo (más tiempo en cada intento)
+        final timeoutDuration = Duration(seconds: 5 + (attempt * 2));
+        final freshDataFuture = appState.ordenes.timeout(
+          timeoutDuration,
+          onTimeout: () {
+            throw TimeoutException('Timeout en intento $attempt', timeoutDuration);
+          },
+        );
+        
+        setState(() {
+          _memoizedFuture = freshDataFuture;
+        });
+        
+        final freshData = await freshDataFuture;
+        
+        if (mounted) {
+          print('✅ Datos recibidos correctamente en intento $attempt: ${freshData.length} órdenes');
+          
+          // Validar que los datos son consistentes
+          bool dataIsValid = freshData.isNotEmpty || _cachedOrdenesData == null;
+          
+          if (dataIsValid) {
+            setState(() {
+              _cachedOrdenesData = freshData;
+              _isLoading = false;
+              _retryCount = 0; // Reset counter en éxito
+            });
+            _lastUpdateTime = DateTime.now();
+            return; // Éxito, salir del loop
+          } else {
+            throw Exception('Datos inconsistentes recibidos');
+          }
+        }
+        
+      } catch (e) {
+        print('❌ Error en intento $attempt: $e');
+        
+        if (attempt == maxRetries) {
+          // Último intento fallido
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _retryCount++;
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error después de $maxRetries intentos. Pull para refrescar.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'Reintentar',
+                  onPressed: () => _forceRefreshWithRetry(),
+                ),
+              ),
+            );
+          }
+        } else {
+          // Esperar antes del siguiente intento
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        }
+      }
+    }
   }
 
   Future<void> _refreshOrders() async {
@@ -81,6 +237,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     
     setState(() {
       _isLoading = true;
+      _deletedOrderIds.clear(); // Limpiar órdenes eliminadas localmente
     });
     
     AppFeedback.hapticFeedback(HapticType.light);
@@ -134,192 +291,327 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
         return FutureBuilder<List<OrdenTrabajo>>(
           future: _memoizedFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && _cachedOrdenesData == null) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
+            print('🏗️ FutureBuilder state: ${snapshot.connectionState}, hasData: ${snapshot.hasData}, isLoading: $_isLoading');
             
-            if (snapshot.hasError && _cachedOrdenesData == null) {
-              return Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      SizedBox(height: 16),
-                      Text('Error al cargar órdenes: ${snapshot.error}'),
-                      SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          // Reestablecer el Future memoizado para recargar datos
-                          _memoizedFuture = appState.ordenes;
-                          _cachedOrdenesData = null;
-                          setState(() {});
-                        },
-                        child: Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-            
-            // Usar datos del snapshot o datos cacheados
-            final ordenesData = snapshot.data ?? _cachedOrdenesData ?? [];
-            if (snapshot.hasData) {
-              _cachedOrdenesData = snapshot.data;
-            }
-            var ordenes = ordenesData.where((orden) {
-              // Mejorar búsqueda: buscar en nombre del cliente, ID de orden y notas
-              final searchLower = _searchQuery.toLowerCase();
-              return orden.cliente.nombre.toLowerCase().contains(searchLower) ||
-                     orden.id.toLowerCase().contains(searchLower) ||
-                     (orden.notas?.toLowerCase().contains(searchLower) ?? false);
-            }).toList();
-
-            // Aplicar filtro por estado
-            if (_selectedFilter != null) {
-              switch (_selectedFilter) {
-                case 'pendiente':
-                  ordenes = ordenes.where((o) => o.estado == 'pendiente').toList();
-                  break;
-                case 'en_proceso':
-                  ordenes = ordenes.where((o) => o.estado == 'en_proceso').toList();
-                  break;
-                case 'terminado':
-                  ordenes = ordenes.where((o) => o.estado == 'terminado').toList();
-                  break;
-                case 'entregado':
-                  ordenes = ordenes.where((o) => o.estado == 'entregado').toList();
-                  break;
-                case 'por_entregar':
-                  // Órdenes terminadas pero no entregadas
-                  ordenes = ordenes
-                      .where((o) => o.estado == 'terminado')
-                      .toList();
-                  break;
+            // Si estamos en loading state
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              // Si estamos forzando actualización, mostrar siempre el indicador
+              if (_isLoading) {
+                return _cachedOrdenesData != null 
+                  ? _buildScaffoldWithData(context, appState, _cachedOrdenesData!, showRefreshIndicator: true)
+                  : const Scaffold(body: Center(child: CircularProgressIndicator()));
+              }
+              // Si tenemos datos cached y NO estamos forzando actualización
+              else if (_cachedOrdenesData != null) {
+                return _buildScaffoldWithData(context, appState, _cachedOrdenesData!, showRefreshIndicator: false);
+              } 
+              // Primera carga
+              else {
+                return const Scaffold(body: Center(child: CircularProgressIndicator()));
               }
             }
-
-            return Scaffold(
-              body: FadeTransition(
-                opacity: _fadeAnimation,
-                child: RefreshIndicator(
-                  onRefresh: _refreshOrders,
-                  child: CustomScrollView(
-                    slivers: [
-              // Stats cards
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: _buildStatsCards(ordenesData),
-                ),
-              ),
+            
+            // Manejo de errores
+            if (snapshot.hasError) {
+              print('❌ FutureBuilder error: ${snapshot.error}');
               
-              // Filter chips
-              if (_selectedFilter != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                    child: Row(
+              if (_cachedOrdenesData == null) {
+                return Scaffold(
+                  body: Center(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AppButton(
-                          text: 'Limpiar filtros',
-                          icon: Icons.clear_rounded,
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
+                        Text('Error al cargar órdenes: ${snapshot.error}'),
+                        SizedBox(height: 16),
+                        ElevatedButton(
                           onPressed: () {
                             setState(() {
-                              _selectedFilter = null;
+                              _memoizedFuture = appState.ordenes;
+                              _cachedOrdenesData = null;
                             });
-                            AppFeedback.hapticFeedback(HapticType.selection);
                           },
-                          type: ButtonType.text,
-                          size: ButtonSize.small,
+                          child: Text('Reintentar'),
                         ),
                       ],
                     ),
                   ),
-                ),
+                );
+              } else {
+                // Mostrar datos cached con error
+                return _buildScaffoldWithData(context, appState, _cachedOrdenesData!, showRefreshIndicator: false);
+              }
+            }
+            
+            // Datos disponibles
+            if (snapshot.hasData) {
+              final freshData = snapshot.data!;
+              print('📊 Datos recibidos: ${freshData.length} órdenes');
               
-              // Search bar
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: AppTextField(
-                    controller: _searchController,
-                    label: 'Buscar órdenes',
-                    hint: 'Buscar por cliente, ID de orden o notas...',
-                    prefixIcon: Icons.search_rounded,
-                    suffixIcon: _searchQuery.isNotEmpty ? Icons.clear : null,
-                    onSuffixTap: _searchQuery.isNotEmpty ? () {
-                      _searchController.clear();
-                      AppFeedback.hapticFeedback(HapticType.selection);
-                    } : null,
-                  ),
-                ),
-              ),
+              // SIEMPRE actualizar cache con datos frescos cuando los recibimos
+              bool shouldUpdate = false;
               
-              // Filter chips
-              SliverToBoxAdapter(
-                child: _buildFilterChips(),
-              ),
+              if (_cachedOrdenesData == null) {
+                print('🆕 Primer conjunto de datos');
+                shouldUpdate = true;
+              } else if (_cachedOrdenesData!.length != freshData.length) {
+                print('📊 Cambio en cantidad de órdenes: ${_cachedOrdenesData!.length} -> ${freshData.length}');
+                shouldUpdate = true;
+              } else {
+                // Verificación detallada de cambios
+                for (int i = 0; i < freshData.length; i++) {
+                  final fresh = freshData[i];
+                  final cached = _cachedOrdenesData![i];
+                  
+                  if (fresh.id != cached.id ||
+                      fresh.total != cached.total ||
+                      fresh.trabajos.length != cached.trabajos.length ||
+                      fresh.estado != cached.estado) {
+                    print('🔄 Detectado cambio en orden ${fresh.id}');
+                    shouldUpdate = true;
+                    break;
+                  }
+                }
+              }
               
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
-              
-              // Orders list
-              if (ordenes.isEmpty)
-                SliverFillRemaining(
-                  child: _buildEmptyState(),
-                )
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final orden = ordenes[index];
-                      return DelayedAnimation(
-                        delay: index * 50,
-                        type: AnimationType.slideUp,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.xs,
-                          ),
-                          child: Dismissible(
-                            key: Key(orden.id),
-                            direction: DismissDirection.endToStart,
-                            background: _buildDismissBackground(),
-                            confirmDismiss: (direction) => _confirmDelete(orden),
-                            onDismissed: (direction) {
-                              appState.deleteOrden(orden.id);
-                              AppFeedback.hapticFeedback(HapticType.medium);
-                              AppFeedback.showToast(
-                                context,
-                                message: 'Orden eliminada',
-                                type: ToastType.info,
-                              );
-                            },
-                            child: _buildOrderCard(orden, appState),
-                          ),
-                        ),
-                      );
-                    },
-                    childCount: ordenes.length,
-                  ),
-                ),
-              
-                      // Bottom spacing
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: AppSpacing.xxxl),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
+              if (shouldUpdate || _isLoading) {
+                print('✅ Actualizando cache y UI');
+                
+                // Actualizar inmediatamente sin delays innecesarios
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _cachedOrdenesData = freshData;
+                      _isLoading = false;
+                    });
+                  }
+                });
+              } else if (_isLoading) {
+                // Solo limpiar loading flag si no hay cambios pero estamos cargando
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
+                });
+              }
+            }
+            
+            // Usar siempre datos del snapshot si están disponibles, sino usar cache
+            final ordenesData = snapshot.data ?? _cachedOrdenesData ?? [];
+            return _buildScaffoldWithData(context, appState, ordenesData, showRefreshIndicator: _isLoading);
           },
         );
       },
+    );
+  }
+
+  Widget _buildScaffoldWithData(BuildContext context, AppState appState, List<OrdenTrabajo> ordenesData, {bool showRefreshIndicator = false}) {
+    // Filtrar órdenes eliminadas localmente
+    var ordenes = ordenesData.where((orden) => !_deletedOrderIds.contains(orden.id)).where((orden) {
+      // Mejorar búsqueda: buscar en nombre del cliente, ID de orden y notas
+      final searchLower = _searchQuery.toLowerCase();
+      return orden.cliente.nombre.toLowerCase().contains(searchLower) ||
+             orden.id.toLowerCase().contains(searchLower) ||
+             (orden.notas?.toLowerCase().contains(searchLower) ?? false);
+    }).toList();
+
+    // Aplicar filtro por estado
+    if (_selectedFilter != null) {
+      switch (_selectedFilter) {
+        case 'pendiente':
+          ordenes = ordenes.where((o) => o.estado == 'pendiente').toList();
+          break;
+        case 'en_proceso':
+          ordenes = ordenes.where((o) => o.estado == 'en_proceso').toList();
+          break;
+        case 'terminado':
+          ordenes = ordenes.where((o) => o.estado == 'terminado').toList();
+          break;
+        case 'entregado':
+          ordenes = ordenes.where((o) => o.estado == 'entregado').toList();
+          break;
+        case 'por_entregar':
+          // Órdenes terminadas pero no entregadas
+          ordenes = ordenes
+              .where((o) => o.estado == 'terminado')
+              .toList();
+          break;
+      }
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: RefreshIndicator(
+              onRefresh: _refreshOrders,
+              child: CustomScrollView(
+                slivers: [
+                  // Stats cards
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: _buildStatsCards(ordenesData),
+                    ),
+                  ),
+                  
+                  // Filter chips
+                  if (_selectedFilter != null)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppButton(
+                              text: 'Limpiar filtros',
+                              icon: Icons.clear_rounded,
+                              onPressed: () {
+                                setState(() {
+                                  _selectedFilter = null;
+                                });
+                                AppFeedback.hapticFeedback(HapticType.selection);
+                              },
+                              type: ButtonType.text,
+                              size: ButtonSize.small,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  
+                  // Search bar
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: AppTextField(
+                        controller: _searchController,
+                        label: 'Buscar órdenes',
+                        hint: 'Buscar por cliente, ID de orden o notas...',
+                        prefixIcon: Icons.search_rounded,
+                        suffixIcon: _searchQuery.isNotEmpty ? Icons.clear : null,
+                        onSuffixTap: _searchQuery.isNotEmpty ? () {
+                          _searchController.clear();
+                          AppFeedback.hapticFeedback(HapticType.selection);
+                        } : null,
+                      ),
+                    ),
+                  ),
+                  
+                  // Filter chips
+                  SliverToBoxAdapter(
+                    child: _buildFilterChips(),
+                  ),
+                  
+                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+                  
+                  // Orders list
+                  if (ordenes.isEmpty)
+                    SliverFillRemaining(
+                      child: _buildEmptyState(),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final orden = ordenes[index];
+                          return DelayedAnimation(
+                            delay: index * 50,
+                            type: AnimationType.slideUp,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.xs,
+                              ),
+                              child: Dismissible(
+                                key: Key(orden.id),
+                                direction: DismissDirection.endToStart,
+                                background: _buildDismissBackground(),
+                                confirmDismiss: (direction) async {
+                                  final shouldDelete = await _confirmDelete(orden);
+                                  if (shouldDelete) {
+                                    try {
+                                      // Agregar la orden a la lista de eliminados localmente inmediatamente
+                                      setState(() {
+                                        _deletedOrderIds.add(orden.id);
+                                      });
+                                      
+                                      // Eliminar de la base de datos en segundo plano
+                                      await appState.deleteOrden(orden.id);
+                                      
+                                      // Feedback de éxito
+                                      if (mounted) {
+                                        AppFeedback.hapticFeedback(HapticType.medium);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Orden eliminada exitosamente'),
+                                            behavior: SnackBarBehavior.floating,
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      // Remover de la lista de eliminados si hubo error
+                                      setState(() {
+                                        _deletedOrderIds.remove(orden.id);
+                                      });
+                                      
+                                      // Manejar errores
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error al eliminar orden: $e'),
+                                            backgroundColor: Theme.of(context).colorScheme.error,
+                                            behavior: SnackBarBehavior.floating,
+                                            duration: const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                      return false; // No eliminar el widget si hubo error
+                                    }
+                                  }
+                                  return shouldDelete;
+                                },
+                                child: _buildOrderCard(orden, appState),
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: ordenes.length,
+                      ),
+                    ),
+                  
+                  // Bottom spacing
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.xxxl),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Indicador sutil de actualización
+          if (showRefreshIndicator)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 3,
+                child: LinearProgressIndicator(
+                  backgroundColor: Colors.transparent,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -449,13 +741,90 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     
     return AppCard(
       isClickable: true,
-      onTap: () {
+      onTap: () async {
         AppFeedback.hapticFeedback(HapticType.light);
-        AppNavigator.push(
+        
+        // Guardar estado antes de navegar
+        final oldTotal = orden.total;
+        final oldTrabajosCount = orden.trabajos.length;
+        _editingOrderId = orden.id; // Trackear qué orden se está editando
+        
+        await AppNavigator.push(
           context,
           OrdenDetalleScreen(orden: orden),
           type: TransitionType.slide,
         );
+        
+          // SIEMPRE forzar actualización al regresar de la pantalla de detalle
+          if (mounted) {
+            print('🔄 Regresando de editar orden ${_editingOrderId}');
+            
+            _justEditedOrder = true;
+            
+            // Mostrar indicador de carga inmediatamente
+            setState(() {
+              _isLoading = true;
+            });
+            
+            // Limpiar TODOS los caches de forma agresiva
+            final appState = Provider.of<AppState>(context, listen: false);
+            appState.clearOrdenesCache();
+            
+            // Esperar un momento para que los cambios se propaguen en Supabase
+            await Future.delayed(const Duration(milliseconds: 300));
+            
+            // Usar el método mejorado con retry
+            try {
+              await _forceRefreshWithRetry();
+              
+              if (mounted) {
+                _justEditedOrder = false;
+                
+                // Verificar cambios específicamente en la orden editada
+                final freshData = _cachedOrdenesData ?? [];
+                final updatedOrder = freshData.firstWhere(
+                  (o) => o.id == _editingOrderId,
+                  orElse: () => orden,
+                );
+                
+                bool hasChanges = updatedOrder.total != oldTotal || 
+                                updatedOrder.trabajos.length != oldTrabajosCount;
+                
+                print(hasChanges 
+                  ? '✅ Cambios confirmados en orden ${_editingOrderId}' 
+                  : 'ℹ️ Sin cambios detectados en orden ${_editingOrderId}');
+                
+                // Mostrar feedback apropiado
+                if (hasChanges) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Text('Orden actualizada: ${updatedOrder.trabajos.length} trabajos, Bs ${updatedOrder.total.toStringAsFixed(2)}'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+                
+                _editingOrderId = null; // Limpiar tracking
+              }
+            } catch (e) {
+              print('❌ Error completo al refrescar orden ${_editingOrderId}: $e');
+              if (mounted) {
+                _justEditedOrder = false;
+                _editingOrderId = null;
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            }
+          }
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
