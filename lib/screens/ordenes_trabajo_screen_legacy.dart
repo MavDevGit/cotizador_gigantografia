@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
-import '../utils/datetime_utils.dart';
-import '../core/design_system/design_tokens.dart';
+import '../utils/utils.dart';
+import '../widgets/widgets.dart';
 import 'screens.dart';
 
 class OrdenesTrabajoScreen extends StatefulWidget {
@@ -53,7 +52,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     WidgetsBinding.instance.addObserver(this);
     
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: AppAnimations.medium,
       vsync: this,
     );
     
@@ -62,7 +61,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeInOut,
+      curve: AppAnimations.defaultCurve,
     ));
     
     // Memoizar el Future al inicializar
@@ -241,7 +240,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
       _deletedOrderIds.clear(); // Limpiar órdenes eliminadas localmente
     });
     
-    HapticFeedback.lightImpact();
+    AppFeedback.hapticFeedback(HapticType.light);
     
     try {
       // Limpiar el cache y reestablecer el Future memoizado
@@ -260,12 +259,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
           _isLoading = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Órdenes actualizadas'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          ),
+        AppFeedback.showToast(
+          context,
+          message: 'Órdenes actualizadas',
+          type: ToastType.success,
         );
       }
     } catch (e) {
@@ -274,13 +271,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
           _isLoading = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar órdenes: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+        AppFeedback.showToast(
+          context,
+          message: 'Error al actualizar órdenes',
+          type: ToastType.error,
         );
       }
     }
@@ -327,10 +321,10 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                        SizedBox(height: AppSpacing.md),
+                        Icon(Icons.error_outline, size: 64, color: Colors.red),
+                        SizedBox(height: 16),
                         Text('Error al cargar órdenes: ${snapshot.error}'),
-                        SizedBox(height: AppSpacing.md),
+                        SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
@@ -338,7 +332,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                               _cachedOrdenesData = null;
                             });
                           },
-                          child: const Text('Reintentar'),
+                          child: Text('Reintentar'),
                         ),
                       ],
                     ),
@@ -460,7 +454,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                   // Stats cards
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.sm),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       child: _buildStatsCards(ordenesData),
                     ),
                   ),
@@ -469,19 +463,21 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                   if (_selectedFilter != null)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            TextButton.icon(
+                            AppButton(
+                              text: 'Limpiar filtros',
+                              icon: Icons.clear_rounded,
                               onPressed: () {
                                 setState(() {
                                   _selectedFilter = null;
                                 });
-                                HapticFeedback.selectionClick();
+                                AppFeedback.hapticFeedback(HapticType.selection);
                               },
-                              icon: const Icon(Icons.clear_rounded),
-                              label: const Text('Limpiar filtros'),
+                              type: ButtonType.text,
+                              size: ButtonSize.small,
                             ),
                           ],
                         ),
@@ -491,24 +487,17 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                   // Search bar
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.md),
-                      child: TextFormField(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: AppTextField(
                         controller: _searchController,
-                        decoration: InputDecoration(
-                          labelText: 'Buscar órdenes',
-                          hintText: 'Buscar por cliente, ID de orden o notas...',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _searchQuery.isNotEmpty 
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  HapticFeedback.selectionClick();
-                                },
-                              )
-                            : null,
-                          border: const OutlineInputBorder(),
-                        ),
+                        label: 'Buscar órdenes',
+                        hint: 'Buscar por cliente, ID de orden o notas...',
+                        prefixIcon: Icons.search_rounded,
+                        suffixIcon: _searchQuery.isNotEmpty ? Icons.clear : null,
+                        onSuffixTap: _searchQuery.isNotEmpty ? () {
+                          _searchController.clear();
+                          AppFeedback.hapticFeedback(HapticType.selection);
+                        } : null,
                       ),
                     ),
                   ),
@@ -518,7 +507,7 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                     child: _buildFilterChips(),
                   ),
                   
-                  SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
+                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
                   
                   // Orders list
                   if (ordenes.isEmpty)
@@ -530,11 +519,11 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final orden = ordenes[index];
-                          return AnimatedContainer(
-                            duration: Duration(milliseconds: 300 + (index * 50)),
-                            curve: Curves.easeOutQuart,
+                          return DelayedAnimation(
+                            delay: index * 50,
+                            type: AnimationType.slideUp,
                             child: Padding(
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.md,
                                 vertical: AppSpacing.xs,
                               ),
@@ -556,12 +545,12 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                                       
                                       // Feedback de éxito
                                       if (mounted) {
-                                        HapticFeedback.mediumImpact();
+                                        AppFeedback.hapticFeedback(HapticType.medium);
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Orden eliminada exitosamente'),
+                                          SnackBar(
+                                            content: const Text('Orden eliminada exitosamente'),
                                             behavior: SnackBarBehavior.floating,
-                                            duration: Duration(seconds: 2),
+                                            duration: const Duration(seconds: 2),
                                           ),
                                         );
                                       }
@@ -597,8 +586,8 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                     ),
                   
                   // Bottom spacing
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: AppSpacing.xl * 3),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.xxxl),
                   ),
                 ],
               ),
@@ -627,7 +616,6 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   }
 
   Widget _buildStatsCards(List<OrdenTrabajo> ordenes) {
-    final theme = Theme.of(context);
     final pendientes = ordenes.where((o) => o.estado == 'pendiente').length;
     final enProceso = ordenes.where((o) => o.estado == 'en_proceso').length;
     final terminadas = ordenes.where((o) => o.estado == 'terminado').length;
@@ -635,48 +623,44 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     return Row(
       children: [
         Expanded(
-          child: _buildStatCard('Pendientes', pendientes.toString(), theme.colorScheme.error),
+          child: _buildStatCard('Pendientes', pendientes.toString(), AppColors.getWarning(context)),
         ),
-        SizedBox(width: AppSpacing.sm),
+        AppSpacing.horizontalSM,
         Expanded(
-          child: _buildStatCard('En Proceso', enProceso.toString(), theme.colorScheme.primary),
+          child: _buildStatCard('En Proceso', enProceso.toString(), AppColors.getInfo(context)),
         ),
-        SizedBox(width: AppSpacing.sm),
+        AppSpacing.horizontalSM,
         Expanded(
-          child: _buildStatCard('Terminadas', terminadas.toString(), Colors.green),
+          child: _buildStatCard('Terminadas', terminadas.toString(), AppColors.getSuccess(context)),
         ),
       ],
     );
   }
 
   Widget _buildStatCard(String title, String value, Color color) {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
+    return AppCard(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: AppTextStyles.heading2(context).copyWith(
+              color: color,
             ),
-            SizedBox(height: AppSpacing.xs),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+          AppSpacing.verticalXS,
+          Text(
+            title,
+            style: AppTextStyles.caption(context),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFilterChips() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Wrap(
         spacing: AppSpacing.sm,
         runSpacing: AppSpacing.sm,
@@ -694,51 +678,42 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
 
   Widget _buildFilterChip(String label, String? filterValue) {
     final isSelected = _selectedFilter == filterValue;
-    final theme = Theme.of(context);
     
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
+    return AppStatusChip(
+      label: label,
+      status: isSelected ? StatusType.info : StatusType.neutral,
+      onTap: () {
         setState(() {
           _selectedFilter = filterValue;
         });
-        HapticFeedback.selectionClick();
+        AppFeedback.hapticFeedback(HapticType.selection);
       },
-      backgroundColor: theme.colorScheme.surface,
-      selectedColor: theme.colorScheme.primaryContainer,
-      labelStyle: TextStyle(
-        color: isSelected 
-          ? theme.colorScheme.onPrimaryContainer 
-          : theme.colorScheme.onSurface,
-      ),
     );
   }
 
   Widget _buildDismissBackground() {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       decoration: BoxDecoration(
-        color: Colors.red.shade400,
-        borderRadius: AppBorders.borderRadiusMD,
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
       ),
       alignment: Alignment.centerRight,
-      padding: EdgeInsets.only(right: AppSpacing.lg),
+      padding: const EdgeInsets.only(right: AppSpacing.lg),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.delete_rounded,
             color: Colors.white,
-            size: 32,
+            size: AppConstants.iconSizeLarge,
           ),
-          SizedBox(height: AppSpacing.xs),
-          const Text(
+          AppSpacing.verticalXS,
+          Text(
             'Eliminar',
-            style: TextStyle(
+            style: AppTextStyles.caption(context).copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
             ),
           ),
         ],
@@ -747,27 +722,14 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
   }
 
   Future<bool> _confirmDelete(OrdenTrabajo orden) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.delete_rounded, color: Colors.red),
-        title: const Text('Eliminar orden'),
-        content: Text('¿Estás seguro de que deseas eliminar la orden de ${orden.cliente.nombre}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final confirmed = await AppFeedback.showConfirmDialog(
+      context,
+      title: 'Eliminar orden',
+      message: '¿Estás seguro de que deseas eliminar la orden de ${orden.cliente.nombre}?',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      confirmColor: AppColors.getError(context),
+      icon: Icons.delete_rounded,
     );
     
     return confirmed ?? false;
@@ -777,23 +739,22 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     final theme = Theme.of(context);
     final total = orden.total;
     
-    return Card(
-      child: InkWell(
-        onTap: () async {
-          HapticFeedback.lightImpact();
-          
-          // Guardar estado antes de navegar
-          final oldTotal = orden.total;
-          final oldTrabajosCount = orden.trabajos.length;
-          _editingOrderId = orden.id; // Trackear qué orden se está editando
-          
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OrdenDetalleScreen(orden: orden),
-            ),
-          );
-          
+    return AppCard(
+      isClickable: true,
+      onTap: () async {
+        AppFeedback.hapticFeedback(HapticType.light);
+        
+        // Guardar estado antes de navegar
+        final oldTotal = orden.total;
+        final oldTrabajosCount = orden.trabajos.length;
+        _editingOrderId = orden.id; // Trackear qué orden se está editando
+        
+        await AppNavigator.push(
+          context,
+          OrdenDetalleScreen(orden: orden),
+          type: TransitionType.slide,
+        );
+        
           // SIEMPRE forzar actualización al regresar de la pantalla de detalle
           if (mounted) {
             print('🔄 Regresando de editar orden ${_editingOrderId}');
@@ -839,8 +800,8 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
                     SnackBar(
                       content: Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                          SizedBox(width: AppSpacing.sm),
+                          Icon(Icons.check_circle, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
                           Text('Orden actualizada: ${updatedOrder.trabajos.length} trabajos, Bs ${updatedOrder.total.toStringAsFixed(2)}'),
                         ],
                       ),
@@ -864,173 +825,108 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
               }
             }
           }
-        },
-        borderRadius: AppBorders.borderRadiusMD,
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header con cliente y estado
+          Row(
             children: [
-              // Header con cliente y estado
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          orden.cliente.nombre,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: AppSpacing.xs),
-                        Text(
-                          'Orden #${orden.id.substring(0, 8)}',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      orden.cliente.nombre,
+                      style: AppTextStyles.subtitle1(context),
                     ),
-                  ),
-                  _buildStatusChip(orden.estado),
-                ],
-              ),
-              
-              SizedBox(height: AppSpacing.md),
-              
-              // Información de la orden
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoItem(
-                      icon: Icons.work_rounded,
-                      label: 'Trabajos',
-                      value: '${orden.trabajos.length}',
+                    AppSpacing.verticalXS,
+                    Text(
+                      'Orden #${orden.id.substring(0, 8)}',
+                      style: AppTextStyles.caption(context),
                     ),
-                  ),
-                  Expanded(
-                    child: _buildInfoItem(
-                      icon: Icons.attach_money_rounded,
-                      label: 'Total',
-                      value: 'Bs ${total.toStringAsFixed(2)}',
-                    ),
-                  ),
-                ],
-              ),
-              
-              SizedBox(height: AppSpacing.sm),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInfoItem(
-                      icon: Icons.calendar_today_rounded,
-                      label: 'Entrega',
-                      value: DateTimeUtils.formatDate(orden.fechaEntrega),
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildInfoItem(
-                      icon: Icons.access_time_rounded,
-                      label: 'Hora',
-                      value: DateTimeUtils.formatTime(orden.horaEntrega),
-                    ),
-                  ),
-                ],
-              ),
-              
-              if (orden.notas != null) ...[
-                SizedBox(height: AppSpacing.md),
-                Container(
-                  padding: EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                    borderRadius: AppBorders.borderRadiusSM,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.note_rounded,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          orden.notas!,
-                          style: theme.textTheme.bodySmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
+              AppStatusChip(
+                label: _getStatusLabel(orden.estado),
+                status: _getStatusType(orden.estado),
+                icon: _getStatusIcon(orden.estado),
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusChip(String estado) {
-    Color backgroundColor;
-    Color textColor;
-    IconData icon;
-    String label;
-
-    switch (estado) {
-      case 'pendiente':
-        backgroundColor = Colors.orange.shade100;
-        textColor = Colors.orange.shade800;
-        icon = Icons.pending_rounded;
-        label = 'Pendiente';
-        break;
-      case 'en_proceso':
-        backgroundColor = Colors.blue.shade100;
-        textColor = Colors.blue.shade800;
-        icon = Icons.build_rounded;
-        label = 'En Proceso';
-        break;
-      case 'terminado':
-        backgroundColor = Colors.green.shade100;
-        textColor = Colors.green.shade800;
-        icon = Icons.check_circle_rounded;
-        label = 'Terminado';
-        break;
-      case 'entregado':
-        backgroundColor = Colors.green.shade100;
-        textColor = Colors.green.shade800;
-        icon = Icons.check_circle_rounded;
-        label = 'Entregado';
-        break;
-      default:
-        backgroundColor = Colors.grey.shade100;
-        textColor = Colors.grey.shade800;
-        icon = Icons.info_rounded;
-        label = 'Desconocido';
-        break;
-    }
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: AppBorders.borderRadiusMD,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: textColor),
-          SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: textColor,
-              fontWeight: FontWeight.w600,
-            ),
+          
+          AppSpacing.verticalMD,
+          
+          // Información de la orden
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.work_rounded,
+                  label: 'Trabajos',
+                  value: '${orden.trabajos.length}',
+                ),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.attach_money_rounded,
+                  label: 'Total',
+                  value: 'Bs ${total.toStringAsFixed(2)}',
+                ),
+              ),
+            ],
           ),
+          
+          AppSpacing.verticalSM,
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.calendar_today_rounded,
+                  label: 'Entrega',
+                  value: DateTimeUtils.formatDate(orden.fechaEntrega),
+                ),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  icon: Icons.access_time_rounded,
+                  label: 'Hora',
+                  value: DateTimeUtils.formatTime(orden.horaEntrega),
+                ),
+              ),
+            ],
+          ),
+          
+          if (orden.notas != null) ...[
+            AppSpacing.verticalMD,
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.note_rounded,
+                    size: AppConstants.iconSizeSmall,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  AppSpacing.horizontalSM,
+                  Expanded(
+                    child: Text(
+                      orden.notas!,
+                      style: AppTextStyles.caption(context),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1047,21 +943,21 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
       children: [
         Icon(
           icon,
-          size: 16,
+          size: AppConstants.iconSizeSmall,
           color: theme.colorScheme.primary,
         ),
-        SizedBox(width: AppSpacing.sm),
+        AppSpacing.horizontalSM,
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: theme.textTheme.bodySmall,
+                style: AppTextStyles.caption(context),
               ),
               Text(
                 value,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: AppTextStyles.body2(context).copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1072,32 +968,56 @@ class _OrdenesTrabajoScreenState extends State<OrdenesTrabajoScreen>
     );
   }
 
+  IconData _getStatusIcon(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return Icons.pending_rounded;
+      case 'en_proceso':
+        return Icons.build_rounded;
+      case 'terminado':
+        return Icons.check_circle_rounded;
+      case 'entregado':
+        return Icons.check_circle_rounded;
+      default:
+        return Icons.info_rounded;
+    }
+  }
+
+  String _getStatusLabel(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return 'Pendiente';
+      case 'en_proceso':
+        return 'En Proceso';
+      case 'terminado':
+        return 'Terminado';
+      case 'entregado':
+        return 'Entregado';
+      default:
+        return 'Desconocido';
+    }
+  }
+
+  StatusType _getStatusType(String estado) {
+    switch (estado) {
+      case 'pendiente':
+        return StatusType.warning;
+      case 'en_proceso':
+        return StatusType.info;
+      case 'terminado':
+        return StatusType.success;
+      case 'entregado':
+        return StatusType.success;
+      default:
+        return StatusType.neutral;
+    }
+  }
+
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.assignment_outlined,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
-          SizedBox(height: AppSpacing.md),
-          Text(
-            'No hay órdenes de trabajo',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.grey.shade600,
-            ),
-          ),
-          SizedBox(height: AppSpacing.sm),
-          Text(
-            'Las órdenes que crees aparecerán aquí',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.assignment_outlined,
+      title: 'No hay órdenes de trabajo',
+      subtitle: 'Las órdenes que crees aparecerán aquí',
     );
   }
 }

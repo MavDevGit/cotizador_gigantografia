@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,8 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../app_state/app_state.dart';
 import '../models/models.dart';
-import '../utils/utils.dart';
-import '../widgets/widgets.dart';
+import '../core/design_system/design_tokens.dart';
 import 'screens.dart';
 
 class CotizarScreen extends StatefulWidget {
@@ -33,6 +30,8 @@ class _CotizarScreenState extends State<CotizarScreen> {
   late TextEditingController _totalPersonalizadoController;
   late TextEditingController _adelantoController;
   late TextEditingController _notasController;
+  late TextEditingController _fechaEntregaController;
+  late TextEditingController _horaEntregaController;
 
   DateTime _fechaEntrega = DateTime.now();
   TimeOfDay _horaEntrega = TimeOfDay.now();
@@ -50,6 +49,13 @@ class _CotizarScreenState extends State<CotizarScreen> {
     _totalPersonalizadoController = TextEditingController();
     _adelantoController = TextEditingController();
     _notasController = TextEditingController();
+    _fechaEntregaController = TextEditingController();
+    _horaEntregaController = TextEditingController();
+
+    // Los controllers se actualizarán en el primer build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateDateTimeControllers();
+    });
 
     // Inicializar el Future memoizado
     final appState = Provider.of<AppState>(context, listen: false);
@@ -74,6 +80,8 @@ class _CotizarScreenState extends State<CotizarScreen> {
     _totalPersonalizadoController.dispose();
     _adelantoController.dispose();
     _notasController.dispose();
+    _fechaEntregaController.dispose();
+    _horaEntregaController.dispose();
     super.dispose();
   }
 
@@ -96,6 +104,60 @@ class _CotizarScreenState extends State<CotizarScreen> {
     return _trabajosEnOrden.fold(0.0, (p, e) => p + e.precioFinal);
   }
 
+  // Métodos de cálculo para el resumen
+  double _calcularSubtotal() {
+    return _trabajosEnOrden.fold(0.0, (sum, trabajo) => sum + trabajo.precioFinal);
+  }
+
+  double _calcularImpuestos() {
+    return 0.0; // Sin impuestos
+  }
+
+  double _calcularDescuento() {
+    return 0.0; // Sin descuentos
+  }
+
+  double _calcularTotal() {
+    final totalPersonalizadoValue = double.tryParse(_totalPersonalizadoController.text);
+    if (totalPersonalizadoValue != null) {
+      return totalPersonalizadoValue;
+    }
+    return _calcularSubtotal();
+  }
+
+  void _updateDateTimeControllers() {
+    _fechaEntregaController.text = '${_fechaEntrega.day}/${_fechaEntrega.month}/${_fechaEntrega.year}';
+    _horaEntregaController.text = _horaEntrega.format(context);
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaEntrega,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && picked != _fechaEntrega) {
+      setState(() {
+        _fechaEntrega = picked;
+        _updateDateTimeControllers();
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _horaEntrega,
+    );
+    if (picked != null && picked != _horaEntrega) {
+      setState(() {
+        _horaEntrega = picked;
+        _updateDateTimeControllers();
+      });
+    }
+  }
+
   void _addTrabajoAOrden() {
     if (_trabajoSeleccionado == null) return;
 
@@ -106,26 +168,22 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
     // Validaciones
     if (ancho <= 0 || alto <= 0) {
-      AppFeedback.showWarning(
-        context,
-        'Las dimensiones deben ser mayores a 0',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Las dimensiones deben ser mayores a 0')),
       );
-      AppFeedback.hapticFeedback(HapticType.medium);
       return;
     }
 
     if (cantidad <= 0) {
-      AppFeedback.showWarning(
-        context,
-        'La cantidad debe ser mayor a 0',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La cantidad debe ser mayor a 0')),
       );
-      AppFeedback.hapticFeedback(HapticType.medium);
       return;
     }
 
     setState(() {
       _trabajosEnOrden.add(OrdenTrabajoTrabajo(
-        id: const Uuid().v4(), // Usar UUID válido
+        id: const Uuid().v4(),
         trabajo: _trabajoSeleccionado!,
         ancho: ancho,
         alto: alto,
@@ -140,12 +198,8 @@ class _CotizarScreenState extends State<CotizarScreen> {
       _adicionalController.clear();
     });
 
-    // Feedback de éxito
-    AppFeedback.hapticFeedback(HapticType.light);
-    AppFeedback.showToast(
-      context,
-      message: 'Trabajo agregado a la orden',
-      type: ToastType.success,
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Trabajo agregado a la orden')),
     );
   }
 
@@ -159,11 +213,8 @@ class _CotizarScreenState extends State<CotizarScreen> {
           setState(() {
             _trabajosEnOrden[index] = editedTrabajo;
           });
-          AppFeedback.hapticFeedback(HapticType.light);
-          AppFeedback.showToast(
-            context,
-            message: 'Trabajo actualizado',
-            type: ToastType.success,
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Trabajo actualizado')),
           );
         },
       ),
@@ -171,56 +222,96 @@ class _CotizarScreenState extends State<CotizarScreen> {
   }
 
   void _showDeleteConfirmation(int index) async {
-    final confirmed = await AppFeedback.showConfirmDialog(
-      context,
-      title: 'Eliminar trabajo',
-      message: '¿Estás seguro de que deseas eliminar este trabajo de la orden?',
-      confirmText: 'Eliminar',
-      cancelText: 'Cancelar',
-      confirmColor: AppColors.getError(context),
-      icon: Icons.delete_rounded,
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar trabajo'),
+        content: const Text('¿Estás seguro de que deseas eliminar este trabajo de la orden?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {
       setState(() {
         _trabajosEnOrden.removeAt(index);
       });
-      AppFeedback.hapticFeedback(HapticType.medium);
-      AppFeedback.showToast(
-        context,
-        message: 'Trabajo eliminado de la orden',
-        type: ToastType.info,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Trabajo eliminado de la orden')),
+      );
+    }
+  }
+
+  // Método para mostrar el diálogo de crear cliente
+  void _showCreateClientDialog() async {
+    final result = await showDialog<Cliente>(
+      context: context,
+      builder: (context) => _CreateClientDialogWrapper(
+        onClientCreated: (newClient) => Navigator.of(context).pop(newClient),
+      ),
+    );
+
+    if (result != null) {
+      // Refrescar los datos para incluir el nuevo cliente
+      final appState = Provider.of<AppState>(context, listen: false);
+      setState(() {
+        // Reinicializar el Future para cargar los datos actualizados
+        _dataFuture = Future.wait([appState.trabajos, appState.clientes]);
+        // Seleccionar automáticamente el nuevo cliente
+        _clienteSeleccionado = result;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cliente "${result.nombre}" creado y seleccionado'),
+          backgroundColor: AppColors.success,
+        ),
       );
     }
   }
 
   void _guardarOrden() async {
     if (!_formKey.currentState!.validate()) {
-      AppFeedback.hapticFeedback(HapticType.medium);
       return;
     }
 
     if (_clienteSeleccionado == null) {
-      AppFeedback.showWarning(
-        context,
-        'Por favor, selecciona un cliente para continuar',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona un cliente para continuar')),
       );
-      AppFeedback.hapticFeedback(HapticType.medium);
       return;
     }
 
     if (_trabajosEnOrden.isEmpty) {
-      AppFeedback.showWarning(
-        context,
-        'Añade al menos un trabajo a la orden para continuar',
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Añade al menos un trabajo a la orden para continuar')),
       );
-      AppFeedback.hapticFeedback(HapticType.medium);
       return;
     }
 
     // Mostrar loading
-    AppFeedback.showLoadingDialog(context, message: 'Guardando orden...');
-    AppFeedback.hapticFeedback(HapticType.light);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: AppSpacing.md),
+            Text('Guardando orden...'),
+          ],
+        ),
+      ),
+    );
 
     try {
       final appState = Provider.of<AppState>(context, listen: false);
@@ -230,7 +321,7 @@ class _CotizarScreenState extends State<CotizarScreen> {
       final adelantoValue = double.tryParse(_adelantoController.text) ?? 0.0;
       final notasValue = _notasController.text;
 
-      final ordenId = const Uuid().v4(); // Generar ID una sola vez
+      final ordenId = const Uuid().v4();
 
       // Convertir OrdenTrabajoTrabajo a OrdenTrabajoItem
       final items = _trabajosEnOrden.map((trabajo) => trabajo.toOrdenTrabajoItem(ordenId)).toList();
@@ -261,18 +352,17 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
       if (mounted) {
         // Ocultar loading
-        AppFeedback.hideLoadingDialog(context);
+        Navigator.of(context).pop();
         
-        // Mostrar éxito con haptic feedback
-        AppFeedback.hapticFeedback(HapticType.medium);
-        AppFeedback.showSuccess(
-          context,
-          'Orden guardada exitosamente',
-          actionLabel: 'Ver órdenes',
-          onAction: () {
-            // Navegar a la pantalla de órdenes
-            Navigator.of(context).pushNamed('/ordenes');
-          },
+        // Mostrar éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Orden guardada exitosamente'),
+            action: SnackBarAction(
+              label: 'Ver órdenes',
+              onPressed: () => Navigator.of(context).pushNamed('/ordenes'),
+            ),
+          ),
         );
 
         // Reset the entire screen
@@ -292,11 +382,9 @@ class _CotizarScreenState extends State<CotizarScreen> {
     } catch (e) {
       print('❌ Error al guardar orden: $e');
       if (mounted) {
-        AppFeedback.hideLoadingDialog(context);
-        AppFeedback.hapticFeedback(HapticType.heavy);
-        AppFeedback.showError(
-          context,
-          'Error al guardar la orden: ${e.toString()}',
+        Navigator.of(context).pop(); // Ocultar loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar la orden: ${e.toString()}')),
         );
       }
     }
@@ -305,30 +393,28 @@ class _CotizarScreenState extends State<CotizarScreen> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<dynamic>>(
-      future: _dataFuture, // Usar el Future memoizado
+      future: _dataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
         
         if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Error al cargar datos: ${snapshot.error}'),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => setState(() {}),
-                    child: Text('Reintentar'),
-                  ),
-                ],
-              ),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, 
+                  size: AppDimensions.iconXXL, 
+                  color: Theme.of(context).colorScheme.error),
+                AppSpacing.verticalMD,
+                Text('Error al cargar datos: ${snapshot.error}'),
+                AppSpacing.verticalMD,
+                ElevatedButton(
+                  onPressed: () => setState(() {}),
+                  child: const Text('Reintentar'),
+                ),
+              ],
             ),
           );
         }
@@ -336,46 +422,53 @@ class _CotizarScreenState extends State<CotizarScreen> {
         final trabajosDisponibles = (snapshot.data?[0] as List<Trabajo>?) ?? [];
         final clientesDisponibles = (snapshot.data?[1] as List<Cliente>?) ?? [];
 
-        return Scaffold(
-          body: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-              child: Column(
-                children: [
-                  _buildAddWorkSection(trabajosDisponibles),
-                  AppSpacing.verticalXL,
-                  _buildWorkList(trabajosDisponibles),
-                  AppSpacing.verticalXL,
-                  _buildSummaryAndClientSection(clientesDisponibles),
-                  AppSpacing.verticalXXL,
-                  _buildSaveButton(),
-                  AppSpacing.verticalXXL,
-                ],
-              ),
-            ),
-          ),
-        );
+        return _buildSinglePageView(trabajosDisponibles, clientesDisponibles);
       },
     );
   }
 
-  Widget _buildSaveButton() {
-    final isEnabled = _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty;
-    
-    return Center(
-      child: AppButton(
-        text: 'Guardar Orden de Trabajo',
-        icon: Icons.save_rounded,
-        onPressed: isEnabled ? _guardarOrden : null,
-        size: ButtonSize.large,
-        width: ResponsiveBreakpoints.isMobile(context) ? double.infinity : 300,
+  // Vista de una sola columna
+  Widget _buildSinglePageView(List<Trabajo> trabajosDisponibles, List<Cliente> clientesDisponibles) {
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        padding: AppSpacing.paddingMD,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Formulario de agregar trabajo
+            _buildWorkForm(trabajosDisponibles),
+            AppSpacing.verticalLG,
+            
+            // 2. Lista de trabajos agregados (si hay)
+            if (_trabajosEnOrden.isNotEmpty) ...[
+              _buildWorksList(),
+              AppSpacing.verticalLG,
+            ],
+            
+            // 3. Selección de cliente
+            _buildClientSection(clientesDisponibles),
+            AppSpacing.verticalLG,
+            
+            // 4. Detalles adicionales
+            _buildDetailsSection(),
+            AppSpacing.verticalLG,
+            
+            // 5. Resumen y totales
+            _buildSummarySection(),
+            AppSpacing.verticalLG,
+            
+            // 6. Botón para crear orden
+            _buildCreateOrderButton(),
+            AppSpacing.verticalXL,
+          ],
+        ),
       ),
     );
   }
 
-  Card _buildAddWorkSection(List<Trabajo> trabajosDisponibles) {
-    // Filtrar trabajos únicos manualmente
+  // Formulario para trabajos
+  Widget _buildWorkForm(List<Trabajo> trabajosDisponibles) {
     final uniqueTrabajos = <String, Trabajo>{};
     for (var trabajo in trabajosDisponibles) {
       uniqueTrabajos[trabajo.id] = trabajo;
@@ -384,301 +477,166 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: AppSpacing.paddingLG,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Dropdown para tipo de trabajo
+            Row(
+              children: [
+                Icon(
+                  Icons.work_outline,
+                  color: AppColors.getPrimary(context),
+                  size: AppDimensions.iconLG,
+                ),
+                AppSpacing.horizontalSM,
+                Text(
+                  'Agregar Trabajo',
+                  style: AppTypography.headline6.copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.getPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.verticalMD,
+            
+            // Dropdown trabajo
             DropdownSearch<Trabajo>(
               items: (filter, infiniteScrollProps) => trabajosUnicos,
               selectedItem: _trabajoSeleccionado,
               itemAsString: (Trabajo trabajo) => trabajo.nombre,
-              onChanged: (Trabajo? newValue) {
-                setState(() {
-                  _trabajoSeleccionado = newValue;
-                });
-              },
-              decoratorProps: DropDownDecoratorProps(
+              compareFn: (Trabajo item1, Trabajo item2) => item1.id == item2.id,
+              onChanged: (Trabajo? newValue) => setState(() => _trabajoSeleccionado = newValue),
+              decoratorProps: const DropDownDecoratorProps(
                 decoration: InputDecoration(
-                  labelText: 'Tipo de Trabajo',
-                  prefixIcon: Icon(
-                    Icons.work_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  hintText: 'Buscar tipo de trabajo...',
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  labelStyle: UIUtils.getSubtitleStyle(context),
-                  hintStyle: UIUtils.getSubtitleStyle(context),
-                  floatingLabelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
-                  ),
+                  labelText: 'Seleccionar tipo de trabajo',
+                  prefixIcon: Icon(Icons.work_outline),
+                  border: OutlineInputBorder(),
                 ),
               ),
-              popupProps: PopupProps.menu(
+              popupProps: const PopupProps.menu(
                 showSearchBox: true,
-                searchFieldProps: const TextFieldProps(
+                searchFieldProps: TextFieldProps(
                   decoration: InputDecoration(
-                    hintText: 'Buscar tipo de trabajo...',
+                    hintText: 'Buscar trabajo...',
                     prefixIcon: Icon(Icons.search),
                     border: OutlineInputBorder(),
                   ),
                 ),
-                itemBuilder: (context, Trabajo trabajo, isSelected, isHighlighted) {
-                  final theme = Theme.of(context);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primaryContainer.withOpacity(0.1)
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        UIUtils.buildThemedIcon(
-                          icon: Icons.work_rounded,
-                          context: context,
-                          isSelected: isSelected,
-                        ),
-                        FormSpacing.horizontalMedium(),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                trabajo.nombre,
-                                style: UIUtils.getTitleStyle(
-                                  context,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          'Bs ${trabajo.precioM2.toStringAsFixed(2)}/m²',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                emptyBuilder: (context, searchEntry) {
-                  final theme = Theme.of(context);
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.work_off_rounded,
-                          size: 48,
-                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                        ),
-                        FormSpacing.verticalSmall(),
-                        Text(
-                          'No se encontraron trabajos',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        if (searchEntry.isNotEmpty) ...[
-                          FormSpacing.verticalSmall(),
-                          Text(
-                            'para "$searchEntry"',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
               ),
-              compareFn: (Trabajo trabajo1, Trabajo trabajo2) =>
-                  trabajo1.id == trabajo2.id,
             ),
-            FormSpacing.verticalLarge(),
+            AppSpacing.verticalMD,
 
-            // Fila con dimensiones - Responsive
-            ResponsiveLayout(
-              mobile: Column(
-                children: [
-                  _buildInputField(
+            // Primera fila: Ancho y Alto
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
                     controller: _anchoController,
-                    label: 'Ancho (m)',
-                    icon: Icons.straighten_rounded,
-                    hintText: '1.0',
+                    decoration: const InputDecoration(
+                      labelText: 'Ancho (m)',
+                      prefixIcon: Icon(Icons.straighten),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     onChanged: (v) => setState(() {}),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                    ],
                   ),
-                  FormSpacing.verticalMedium(),
-                  _buildInputField(
+                ),
+                AppSpacing.horizontalMD,
+                Expanded(
+                  child: TextFormField(
                     controller: _altoController,
-                    label: 'Alto (m)',
-                    icon: Icons.height_rounded,
-                    hintText: '1.0',
+                    decoration: const InputDecoration(
+                      labelText: 'Alto (m)',
+                      prefixIcon: Icon(Icons.height),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     onChanged: (v) => setState(() {}),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                    ],
                   ),
-                ],
-              ),
-              tablet: Row(
-                children: [
-                  Expanded(
-                    child: _buildInputField(
-                      controller: _anchoController,
-                      label: 'Ancho (m)',
-                      icon: Icons.straighten_rounded,
-                      hintText: '1.0',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                    ),
-                  ),
-                  FormSpacing.horizontalMedium(),
-                  Expanded(
-                    child: _buildInputField(
-                      controller: _altoController,
-                      label: 'Alto (m)',
-                      icon: Icons.height_rounded,
-                      hintText: '1.0',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            FormSpacing.verticalLarge(),
-
-            // Fila con cantidad y adicional - Responsive
-            ResponsiveLayout(
-              mobile: Column(
-                children: [
-                  _buildInputField(
+            
+            AppSpacing.verticalMD,
+            
+            // Segunda fila: Cantidad y Costo adicional
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
                     controller: _cantidadController,
-                    label: 'Cantidad',
-                    icon: Icons.numbers_rounded,
-                    hintText: '1',
-                    onChanged: (v) => setState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Cantidad',
+                      prefixIcon: Icon(Icons.format_list_numbered),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                  FormSpacing.verticalMedium(),
-                  _buildInputField(
-                    controller: _adicionalController,
-                    label: 'Adicional (Bs)',
-                    icon: Icons.attach_money_rounded,
-                    hintText: '0.0',
                     onChanged: (v) => setState(() {}),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
+                  ),
+                ),
+                AppSpacing.horizontalMD,
+                Expanded(
+                  child: TextFormField(
+                    controller: _adicionalController,
+                    decoration: const InputDecoration(
+                      labelText: 'Costo adicional (Bs)',
+                      prefixIcon: Icon(Icons.attach_money),
+                      border: OutlineInputBorder(),
+                      helperText: 'Instalación, traslado, etc.',
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+                    onChanged: (v) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+
+            AppSpacing.verticalLG,
+            
+            // Subtotal y botón
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (_subtotalActual > 0)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Subtotal del trabajo:',
+                        style: AppTypography.caption,
+                      ),
+                      Text(
+                        'Bs ${_subtotalActual.toStringAsFixed(0)}',
+                        style: AppTypography.headline6.copyWith(
+                          color: AppColors.getPrimary(context),
+                          fontWeight: AppTypography.medium,
+                        ),
+                      ),
                     ],
-                  ),
-                ],
-              ),
-              tablet: Row(
-                children: [
-                  Expanded(
-                    child: _buildInputField(
-                      controller: _cantidadController,
-                      label: 'Cantidad',
-                      icon: Icons.numbers_rounded,
-                      hintText: '1',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  )
+                else
+                  const SizedBox.shrink(),
+                SizedBox(
+                  height: AppDimensions.buttonHeight,
+                  child: ElevatedButton.icon(
+                    onPressed: _trabajoSeleccionado != null &&
+                            _anchoController.text.isNotEmpty &&
+                            _altoController.text.isNotEmpty
+                        ? _addTrabajoAOrden
+                        : null,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Añadir trabajo'),
+                    style: ElevatedButton.styleFrom(
+                      padding: AppSpacing.paddingLG,
                     ),
                   ),
-                  FormSpacing.horizontalMedium(),
-                  Expanded(
-                    child: _buildInputField(
-                      controller: _adicionalController,
-                      label: 'Adicional (Bs)',
-                      icon: Icons.attach_money_rounded,
-                      hintText: '0.0',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            FormSpacing.verticalLarge(),
-
-            // Subtotal
-            UIUtils.buildInfoContainer(
-              context: context,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Subtotal:",
-                    style: UIUtils.getTitleStyle(context),
-                  ),
-                  Text(
-                    "Bs ${_subtotalActual.toStringAsFixed(2)}",
-                    style: UIUtils.getPriceStyle(context, isLarge: true),
-                  ),
-                ],
-              ),
-            ),
-            FormSpacing.verticalLarge(),
-
-            // Botón agregar
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Añadir a la Orden'),
-                onPressed: _trabajoSeleccionado != null &&
-                        _anchoController.text.isNotEmpty &&
-                        _altoController.text.isNotEmpty
-                    ? _addTrabajoAOrden
-                    : null,
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -686,174 +644,124 @@ class _CotizarScreenState extends State<CotizarScreen> {
     );
   }
 
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String hintText,
-    required ValueChanged<String> onChanged,
-    List<TextInputFormatter>? inputFormatters,
-  }) {
-    return ThemedInputField(
-      controller: controller,
-      label: label,
-      icon: icon,
-      hintText: hintText,
-      onChanged: onChanged,
-      inputFormatters: inputFormatters,
-      keyboardType: TextInputType.number,
-    );
-  }
-
-  Widget _buildWorkList(List<Trabajo> trabajosDisponibles) {
-    if (_trabajosEnOrden.isEmpty) {
-      return AppCard(
-        child: AppEmptyState(
-          icon: Icons.work_off_rounded,
-          title: 'Aún no hay trabajos en esta orden',
-          subtitle: 'Agrega trabajos usando el formulario superior',
-        ),
-      );
-    }
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Lista de trabajos
-          ...List.generate(_trabajosEnOrden.length, (index) {
-            final item = _trabajosEnOrden[index];
-            final theme = Theme.of(context);
+  // Lista de trabajos agregados
+  Widget _buildWorksList() {
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingLG,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.list_alt,
+                  color: AppColors.getPrimary(context),
+                  size: AppDimensions.iconLG,
+                ),
+                AppSpacing.horizontalSM,
+                Text(
+                  'Trabajos en la Orden',
+                  style: AppTypography.headline6.copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.getPrimary(context),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${_trabajosEnOrden.length} trabajo${_trabajosEnOrden.length != 1 ? 's' : ''}',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.getPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.verticalMD,
             
-            return DelayedAnimation(
-              delay: index * 100,
-              type: AnimationType.slideUp,
-              child: Container(
-                margin: EdgeInsets.only(bottom: AppSpacing.md),
-                child: AppCard(
-                  isClickable: true,
-                  onTap: () => _editTrabajoEnOrden(index, trabajosDisponibles),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.all(AppSpacing.md),
-                    leading: Container(
-                      padding: EdgeInsets.all(AppSpacing.sm),
+            ...List.generate(_trabajosEnOrden.length, (index) {
+              final trabajo = _trabajosEnOrden[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: AppSpacing.paddingMD,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: AppColors.getPrimary(context).withOpacity(0.2),
+                  ),
+                  borderRadius: AppBorders.borderRadiusMD,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: AppDimensions.dividerWidth,
+                      height: AppDimensions.cardHeight,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
-                      ),
-                      child: Icon(
-                        Icons.work_rounded,
-                        color: theme.colorScheme.onPrimaryContainer,
-                        size: AppConstants.iconSizeSmall,
+                        color: AppColors.getPrimary(context),
+                        borderRadius: AppBorders.borderRadiusXS,
                       ),
                     ),
-                    title: Text(
-                      '${item.trabajo?.nombre ?? 'Trabajo sin nombre'} (${item.cantidad}x)',
-                      style: AppTextStyles.subtitle2(context),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppSpacing.verticalXS,
-                        Text(
-                          'Dimensiones: ${item.ancho}m x ${item.alto}m (${(item.ancho * item.alto).toStringAsFixed(2)} m²)',
-                          style: AppTextStyles.caption(context),
-                        ),
-                        if (item.adicional > 0) ...[
+                    AppSpacing.horizontalMD,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            trabajo.trabajo?.nombre ?? 'Sin nombre',
+                            style: AppTypography.bodyText1.copyWith(
+                              fontWeight: AppTypography.medium,
+                            ),
+                          ),
                           AppSpacing.verticalXS,
                           Text(
-                            'Adicional: Bs ${item.adicional.toStringAsFixed(2)}',
-                            style: AppTextStyles.caption(context).copyWith(
-                              color: AppColors.getInfo(context),
-                            ),
+                            'Dimensiones: ${trabajo.ancho}m × ${trabajo.alto}m',
+                            style: AppTypography.bodyText2,
                           ),
-                        ],
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
+                          Text(
+                            'Cantidad: ${trabajo.cantidad} unidad${trabajo.cantidad != 1 ? 'es' : ''}',
+                            style: AppTypography.bodyText2,
+                          ),
+                          if (trabajo.adicional > 0) ...[
                             Text(
-                              'Bs ${item.precioFinal.toStringAsFixed(2)}',
-                              style: AppTextStyles.price(context),
-                            ),
-                            AppSpacing.verticalXS,
-                            AppStatusChip(
-                              label: '${item.cantidad}x',
-                              status: StatusType.info,
+                              'Costo adicional: Bs ${trabajo.adicional.toStringAsFixed(0)}',
+                              style: AppTypography.bodyText2.copyWith(
+                                color: AppColors.warning,
+                              ),
                             ),
                           ],
-                        ),
-                        AppSpacing.horizontalSM,
-                        IconButton(
-                          icon: Icon(
-                            Icons.delete_rounded,
-                            color: AppColors.getError(context),
-                            size: AppConstants.iconSizeSmall,
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Bs ${trabajo.precioFinal.toStringAsFixed(0)}',
+                          style: AppTypography.headline6.copyWith(
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.getPrimary(context),
                           ),
-                          onPressed: () {
-                            AppFeedback.hapticFeedback(HapticType.medium);
-                            _showDeleteConfirmation(index);
-                          },
-                          tooltip: 'Eliminar',
+                        ),
+                        AppSpacing.verticalSM,
+                        IconButton(
+                          onPressed: () => _showDeleteConfirmation(index),
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-              ),
-            );
-          }),
-
-          // Total de trabajos
-          if (_trabajosEnOrden.isNotEmpty) ...[
-            AppSpacing.verticalMD,
-            Divider(color: Theme.of(context).colorScheme.outline.withOpacity(0.2)),
-            AppSpacing.verticalMD,
-            Container(
-              padding: EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total de Trabajos:',
-                    style: AppTextStyles.subtitle2(context),
-                  ),
-                  Text(
-                    'Bs ${_trabajosEnOrden.fold(0.0, (sum, item) => sum + item.precioFinal).toStringAsFixed(2)}',
-                    style: AppTextStyles.price(context, isLarge: true),
-                  ),
-                ],
-              ),
-            ),
+              );
+            }),
           ],
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildSummaryAndClientSection(List<Cliente> clientesDisponibles) {
-    double totalBruto =
-        _trabajosEnOrden.fold(0.0, (p, e) => p + e.precioFinal);
-    final totalPersonalizado =
-        double.tryParse(_totalPersonalizadoController.text);
-    double rebaja = 0.0;
-    if (totalPersonalizado != null && totalPersonalizado < totalBruto) {
-      rebaja = totalBruto - totalPersonalizado;
-    }
-
-    // Filtrar clientes únicos manualmente
+  // Sección de cliente
+  Widget _buildClientSection(List<Cliente> clientesDisponibles) {
     final uniqueClientes = <String, Cliente>{};
     for (var cliente in clientesDisponibles) {
       uniqueClientes[cliente.id] = cliente;
@@ -862,502 +770,472 @@ class _CotizarScreenState extends State<CotizarScreen> {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: AppSpacing.paddingLG,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Selección de cliente
-            DropdownSearch<Cliente>(
-              items: (filter, infiniteScrollProps) => clientesUnicos,
-              selectedItem: _clienteSeleccionado,
-              itemAsString: (Cliente cliente) => cliente.nombre,
-              onChanged: (Cliente? newValue) {
-                setState(() {
-                  _clienteSeleccionado = newValue;
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Seleccione un cliente' : null,
-              decoratorProps: DropDownDecoratorProps(
-                decoration: InputDecoration(
-                  labelText: 'Cliente',
-                  prefixIcon: Icon(
-                    Icons.person_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  hintText: 'Buscar cliente...',
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  labelStyle: UIUtils.getSubtitleStyle(context),
-                  hintStyle: UIUtils.getSubtitleStyle(context),
-                  floatingLabelStyle: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontSize: 14,
+            Row(
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  color: AppColors.getPrimary(context),
+                  size: AppDimensions.iconLG,
+                ),
+                AppSpacing.horizontalSM,
+                Text(
+                  'Cliente',
+                  style: AppTypography.headline6.copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.getPrimary(context),
                   ),
                 ),
-              ),
-              popupProps: PopupProps.menu(
-                showSearchBox: true,
-                searchFieldProps: const TextFieldProps(
-                  decoration: InputDecoration(
-                    hintText: 'Buscar cliente...',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                const Spacer(),
+                // Botón para agregar nuevo cliente
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.getPrimary(context).withOpacity(0.1),
+                    borderRadius: AppBorders.borderRadiusSM,
+                  ),
+                  child: IconButton(
+                    onPressed: _showCreateClientDialog,
+                    icon: Icon(
+                      Icons.add,
+                      color: AppColors.getPrimary(context),
+                    ),
+                    tooltip: 'Crear nuevo cliente',
+                    iconSize: AppDimensions.iconMD,
                   ),
                 ),
-                itemBuilder: (context, Cliente cliente, isSelected, isHighlighted) {
-                  final theme = Theme.of(context);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? theme.colorScheme.primaryContainer.withOpacity(0.1)
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        UIUtils.buildThemedIcon(
-                          icon: Icons.person_rounded,
-                          context: context,
-                          isSelected: isSelected,
-                        ),
-                        FormSpacing.horizontalMedium(),
-                        Expanded(
-                          child: Text(
-                            cliente.nombre,
-                            style: UIUtils.getTitleStyle(
-                              context,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? theme.colorScheme.primary
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                emptyBuilder: (context, searchEntry) {
-                  final theme = Theme.of(context);
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          size: 48,
-                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
-                        ),
-                        FormSpacing.verticalSmall(),
-                        Text(
-                          'No se encontraron clientes',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        if (searchEntry.isNotEmpty) ...[
-                          FormSpacing.verticalSmall(),
-                          Text(
-                            'para "$searchEntry"',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-              ),
-              compareFn: (Cliente cliente1, Cliente cliente2) =>
-                  cliente1.id == cliente2.id,
+              ],
             ),
-            FormSpacing.verticalLarge(),
-
-            // Campos financieros - Responsive
-            ResponsiveLayout(
-              mobile: Column(
-                children: [
-                  ThemedInputField(
-                    controller: _totalPersonalizadoController,
-                    label: 'Total Personalizado (Bs)',
-                    icon: Icons.edit_rounded,
-                    hintText: 'Opcional',
-                    onChanged: (v) => setState(() {}),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                    ],
-                    keyboardType: TextInputType.number,
-                  ),
-                  FormSpacing.verticalMedium(),
-                  ThemedInputField(
-                    controller: _adelantoController,
-                    label: 'Adelanto (Bs)',
-                    icon: Icons.payment_rounded,
-                    hintText: '0.00',
-                    onChanged: (v) => setState(() {}),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                    ],
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
-              ),
-              tablet: Row(
-                children: [
-                  Expanded(
-                    child: ThemedInputField(
-                      controller: _totalPersonalizadoController,
-                      label: 'Total Personalizado (Bs)',
-                      icon: Icons.edit_rounded,
-                      hintText: 'Opcional',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  FormSpacing.horizontalMedium(),
-                  Expanded(
-                    child: ThemedInputField(
-                      controller: _adelantoController,
-                      label: 'Adelanto (Bs)',
-                      icon: Icons.payment_rounded,
-                      hintText: '0.00',
-                      onChanged: (v) => setState(() {}),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
-                      ],
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            FormSpacing.verticalLarge(),
-
-            // Notas
-            TextFormField(
-              controller: _notasController,
-              decoration: InputDecoration(
-                labelText: 'Notas',
-                prefixIcon: Icon(
-                  Icons.note_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                hintText: 'Información adicional...',
-                filled: true,
-                fillColor: Theme.of(context).colorScheme.surface,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 2,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                labelStyle: UIUtils.getSubtitleStyle(context),
-                hintStyle: UIUtils.getSubtitleStyle(context),
-                floatingLabelStyle: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 14,
-                ),
-              ),
-              maxLines: 3,
-              style: UIUtils.getTitleStyle(context),
-            ),
-            FormSpacing.verticalLarge(),
-
-            // Fecha y hora de entrega - Responsive
-            ResponsiveLayout(
-              mobile: Column(
-                children: [
-                  // Fecha en móvil
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: UIUtils.cardDecoration(context),
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _fechaEntrega,
-                          firstDate: DateTime(2020, 1, 1),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                          locale: const Locale('es', 'ES'),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                datePickerTheme: DatePickerThemeData(
-                                  dayOverlayColor: MaterialStateProperty.all(Colors.transparent),
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null)
-                          setState(() => _fechaEntrega = picked);
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          FormSpacing.horizontalMedium(),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Fecha de Entrega',
-                                  style: UIUtils.getSubtitleStyle(context),
-                                ),
-                                Text(
-                                  DateTimeUtils.formatDate(_fechaEntrega),
-                                  style: UIUtils.getTitleStyle(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+            AppSpacing.verticalMD,
+            
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownSearch<Cliente>(
+                    items: (filter, infiniteScrollProps) => clientesUnicos,
+                    selectedItem: _clienteSeleccionado,
+                    itemAsString: (Cliente cliente) => cliente.nombre,
+                    compareFn: (Cliente item1, Cliente item2) => item1.id == item2.id,
+                    onChanged: (Cliente? newValue) => setState(() => _clienteSeleccionado = newValue),
+                    validator: (value) => value == null ? 'Selecciona un cliente' : null,
+                    decoratorProps: const DropDownDecoratorProps(
+                      decoration: InputDecoration(
+                        labelText: 'Seleccionar Cliente',
+                        prefixIcon: Icon(Icons.person_outline),
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  ),
-                  FormSpacing.verticalMedium(),
-                  // Hora en móvil
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: UIUtils.cardDecoration(context),
-                    child: InkWell(
-                      onTap: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: _horaEntrega,
-                        );
-                        if (picked != null)
-                          setState(() => _horaEntrega = picked);
-                      },
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          FormSpacing.horizontalMedium(),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hora de Entrega',
-                                  style: UIUtils.getSubtitleStyle(context),
-                                ),
-                                Text(
-                                  DateTimeUtils.formatTime(_horaEntrega),
-                                  style: UIUtils.getTitleStyle(context),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              tablet: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: UIUtils.cardDecoration(context),
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _fechaEntrega,
-                            firstDate: DateTime(2020, 1, 1),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                            locale: const Locale('es', 'ES'),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  datePickerTheme: DatePickerThemeData(
-                                    dayOverlayColor: MaterialStateProperty.all(Colors.transparent),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null)
-                            setState(() => _fechaEntrega = picked);
-                        },
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today_rounded,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            FormSpacing.horizontalMedium(),
-                            Flexible(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Fecha de Entrega',
-                                    style: UIUtils.getSubtitleStyle(context),
-                                  ),
-                                  Text(
-                                    DateTimeUtils.formatDate(_fechaEntrega),
-                                    style: UIUtils.getTitleStyle(context),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                    popupProps: const PopupProps.menu(
+                      showSearchBox: true,
+                      searchFieldProps: TextFieldProps(
+                        decoration: InputDecoration(
+                          hintText: 'Buscar cliente...',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
                         ),
                       ),
                     ),
                   ),
-                  FormSpacing.horizontalMedium(),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: UIUtils.cardDecoration(context),
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: _horaEntrega,
-                          );
-                          if (picked != null)
-                            setState(() => _horaEntrega = picked);
-                        },
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            FormSpacing.horizontalMedium(),
-                            Flexible(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Hora de Entrega',
-                                    style: UIUtils.getSubtitleStyle(context),
-                                  ),
-                                  Text(
-                                    DateTimeUtils.formatTime(_horaEntrega),
-                                    style: UIUtils.getTitleStyle(context),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            FormSpacing.verticalLarge(),
-
-            // Resumen financiero
-            UIUtils.buildSummaryContainer(
-              context: context,
-              isElevated: true,
-              child: Column(
-                children: [
-                  PriceDisplay(
-                    label: 'Total Bruto:',
-                    amount: totalBruto,
-                  ),
-                  if (rebaja > 0) ...[
-                    FormSpacing.verticalSmall(),
-                    PriceDisplay(
-                      label: 'Rebaja:',
-                      amount: rebaja,
-                      color: UIUtils.getWarningColor(context),
-                    ),
-                  ],
-                  FormSpacing.verticalMedium(),
-                  UIUtils.buildSectionDivider(context),
-                  FormSpacing.verticalMedium(),
-                  PriceDisplay(
-                    label: 'Total Final:',
-                    amount: _totalOrden,
-                    isTotal: true,
-                  ),
-                  if (double.tryParse(_adelantoController.text) != null &&
-                      double.tryParse(_adelantoController.text)! > 0) ...[
-                    FormSpacing.verticalSmall(),
-                    PriceDisplay(
-                      label: 'Adelanto:',
-                      amount: double.tryParse(_adelantoController.text) ?? 0,
-                      color: UIUtils.getSuccessColor(context),
-                    ),
-                    FormSpacing.verticalSmall(),
-                    PriceDisplay(
-                      label: 'Saldo:',
-                      amount: _totalOrden - (double.tryParse(_adelantoController.text) ?? 0),
-                      color: UIUtils.getInfoColor(context),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            FormSpacing.verticalExtraLarge(),
           ],
         ),
       ),
+    );
+  }
+
+  // Sección de detalles
+  Widget _buildDetailsSection() {
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingLG,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColors.getPrimary(context),
+                  size: AppDimensions.iconLG,
+                ),
+                AppSpacing.horizontalSM,
+                Text(
+                  'Detalles Adicionales',
+                  style: AppTypography.headline6.copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.getPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.verticalMD,
+            
+            // Fecha y hora de entrega
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _fechaEntregaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Fecha de entrega',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
+                  ),
+                ),
+                AppSpacing.horizontalMD,
+                Expanded(
+                  child: TextFormField(
+                    controller: _horaEntregaController,
+                    decoration: const InputDecoration(
+                      labelText: 'Hora de entrega',
+                      prefixIcon: Icon(Icons.access_time_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    readOnly: true,
+                    onTap: () => _selectTime(context),
+                  ),
+                ),
+              ],
+            ),
+            
+            AppSpacing.verticalMD,
+            
+            // Adelanto
+            TextFormField(
+              controller: _adelantoController,
+              decoration: const InputDecoration(
+                labelText: 'Adelanto (Bs)',
+                prefixIcon: Icon(Icons.attach_money_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Monto recibido como adelanto del cliente',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+              onChanged: (value) => setState(() {}), // Actualizar resumen en tiempo real
+            ),
+            
+            AppSpacing.verticalMD,
+            
+            // Total personalizado
+            TextFormField(
+              controller: _totalPersonalizadoController,
+              decoration: const InputDecoration(
+                labelText: 'Total personalizado (Bs)',
+                prefixIcon: Icon(Icons.edit_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Anular cálculo automático y usar este total',
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+              onChanged: (value) => setState(() {}), // Actualizar resumen en tiempo real
+            ),
+            
+            AppSpacing.verticalMD,
+            
+            // Notas
+            TextFormField(
+              controller: _notasController,
+              decoration: const InputDecoration(
+                labelText: 'Notas adicionales',
+                prefixIcon: Icon(Icons.note_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Instrucciones especiales, comentarios, etc.',
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Sección de resumen
+  Widget _buildSummarySection() {
+    final subtotal = _calcularSubtotal();
+    final total = _calcularTotal();
+    final totalPersonalizado = double.tryParse(_totalPersonalizadoController.text);
+    
+    // Debug
+    print('DEBUG - Subtotal: $subtotal, Total: $total, Personalizado: $totalPersonalizado');
+    
+    return Card(
+      child: Padding(
+        padding: AppSpacing.paddingLG,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  color: AppColors.getPrimary(context),
+                  size: AppDimensions.iconLG,
+                ),
+                AppSpacing.horizontalSM,
+                Text(
+                  'Resumen de la Orden',
+                  style: AppTypography.headline6.copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.getPrimary(context),
+                  ),
+                ),
+              ],
+            ),
+            AppSpacing.verticalMD,
+            
+            // Detalles del cálculo
+            Container(
+              padding: AppSpacing.paddingMD,
+              decoration: BoxDecoration(
+                color: AppColors.getSurface(context),
+                borderRadius: AppBorders.borderRadiusMD,
+                border: Border.all(
+                  color: AppColors.getPrimary(context).withOpacity(0.2),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Subtotal:',
+                        style: AppTypography.bodyText1,
+                      ),
+                      Text(
+                        'Bs ${subtotal.toStringAsFixed(0)}',
+                        style: AppTypography.bodyText1.copyWith(
+                          fontWeight: AppTypography.medium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Mostrar ajuste personalizado si existe
+                  if (totalPersonalizado != null && totalPersonalizado > 0) ...[
+                    AppSpacing.verticalSM,
+                    const Divider(height: 1),
+                    AppSpacing.verticalSM,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Ajuste personalizado:',
+                          style: AppTypography.bodyText2.copyWith(
+                            color: AppColors.warning,
+                          ),
+                        ),
+                        Text(
+                          '${totalPersonalizado > subtotal ? '+' : ''}Bs ${(totalPersonalizado - subtotal).toStringAsFixed(0)}',
+                          style: AppTypography.bodyText2.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: AppTypography.medium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  
+                  AppSpacing.verticalMD,
+                  const Divider(height: 1),
+                  AppSpacing.verticalMD,
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total:',
+                        style: AppTypography.headline6.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                      Text(
+                        'Bs ${total.toStringAsFixed(0)}',
+                        style: AppTypography.headline5.copyWith(
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.getPrimary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Botón para crear orden
+  Widget _buildCreateOrderButton() {
+    final isEnabled = _clienteSeleccionado != null && _trabajosEnOrden.isNotEmpty;
+    
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: isEnabled ? _guardarOrden : null,
+        icon: Icon(Icons.save_rounded, size: AppDimensions.iconLG),
+        label: Text(
+          'Crear Orden de Trabajo',
+          style: AppTypography.button,
+        ),
+        style: ElevatedButton.styleFrom(
+          minimumSize: Size(0, AppDimensions.buttonHeight),
+          padding: AppSpacing.paddingLG,
+        ),
+      ),
+    );
+  }
+}
+
+// Widget wrapper para manejar la creación de cliente
+class _CreateClientDialogWrapper extends StatefulWidget {
+  final Function(Cliente) onClientCreated;
+  
+  const _CreateClientDialogWrapper({
+    required this.onClientCreated,
+  });
+
+  @override
+  _CreateClientDialogWrapperState createState() => _CreateClientDialogWrapperState();
+}
+
+class _CreateClientDialogWrapperState extends State<_CreateClientDialogWrapper> {
+  final _formKey = GlobalKey<FormState>();
+  String _nombre = '';
+  String _contacto = '';
+
+  Future<void> _submit() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      
+      // Mostrar loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: AppSpacing.md),
+              Text('Creando cliente...'),
+            ],
+          ),
+        ),
+      );
+
+      try {
+        final appState = Provider.of<AppState>(context, listen: false);
+        
+        // Crear nuevo cliente
+        final newCliente = Cliente.legacy(
+          id: const Uuid().v4(),
+          nombre: _nombre,
+          contacto: _contacto,
+          empresaId: appState.currentUser!.empresaId,
+          authUserId: appState.currentUser!.authUserId, // Usar authUserId (UUID de Supabase Auth)
+          createdAt: DateTime.now(),
+        );
+
+        await appState.addCliente(newCliente);
+        
+        if (mounted) {
+          // Cerrar loading
+          Navigator.of(context).pop();
+          // Devolver el cliente creado
+          widget.onClientCreated(newCliente);
+        }
+      } catch (e) {
+        if (mounted) {
+          // Cerrar loading
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al crear cliente: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return AlertDialog(
+      backgroundColor: theme.colorScheme.surface,
+      title: Row(
+        children: [
+          Icon(
+            Icons.person_add,
+            color: AppColors.getPrimary(context),
+            size: AppDimensions.iconLG,
+          ),
+          AppSpacing.horizontalSM,
+          Text(
+            'Nuevo Cliente',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: AppTypography.semiBold,
+            ),
+          ),
+        ],
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Nombre del Cliente',
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                prefixIcon: const Icon(Icons.person_outline),
+                border: const OutlineInputBorder(),
+              ),
+              validator: (v) => v?.isEmpty == true ? 'Campo requerido' : null,
+              onSaved: (v) => _nombre = v ?? '',
+              autofocus: true,
+            ),
+            AppSpacing.verticalMD,
+            TextFormField(
+              decoration: InputDecoration(
+                labelText: 'Contacto (Teléfono, Email, etc.)',
+                labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                prefixIcon: const Icon(Icons.phone_outlined),
+                border: const OutlineInputBorder(),
+                helperText: 'Opcional - Información de contacto',
+              ),
+              onSaved: (v) => _contacto = v ?? '',
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.getPrimary(context),
+            foregroundColor: AppColors.white,
+          ),
+          onPressed: _submit,
+          icon: Icon(Icons.add, size: AppDimensions.iconSM),
+          label: const Text('Crear Cliente'),
+        ),
+      ],
     );
   }
 }

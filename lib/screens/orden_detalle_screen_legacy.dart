@@ -10,8 +10,8 @@ import 'package:provider/provider.dart';
 import '../app_state/app_state.dart';
 import '../models/models.dart';
 import '../services/services.dart';
-import '../utils/datetime_utils.dart';
-import '../core/design_system/design_tokens.dart';
+import '../utils/utils.dart';
+import '../widgets/widgets.dart';
 import 'screens.dart';
 
 class OrdenDetalleScreen extends StatefulWidget {
@@ -194,7 +194,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.work_outline, size: 20),
-                      SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: 8),
                       Text('Orden de Trabajo'),
                     ],
                   ),
@@ -204,7 +204,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.description_outlined, size: 20),
-                      SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: 8),
                       Text('Proforma'),
                     ],
                   ),
@@ -214,7 +214,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.receipt_long_outlined, size: 20),
-                      SizedBox(width: AppSpacing.sm),
+                      SizedBox(width: 8),
                       Text('Nota de Venta'),
                     ],
                   ),
@@ -238,10 +238,10 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(true),
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
-                        ),
                         child: const Text('Eliminar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: UIUtils.getErrorColor(context),
+                        ),
                       ),
                     ],
                   ),
@@ -260,7 +260,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
               tooltip: "Guardar Cambios",
             )
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
               Tab(icon: Icon(Icons.edit_document), text: "Detalles"),
               Tab(icon: Icon(Icons.history), text: "Historial"),
@@ -289,12 +289,12 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
     final clientesUnicos = uniqueClientes.values.toList();
 
     return ListView(
-      padding: EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(16),
       children: [
         // --- CLIENT AND STATUS SECTION ---
         Card(
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
                 DropdownSearch<Cliente>(
@@ -320,28 +320,29 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       filled: true,
                       fillColor: Theme.of(context).colorScheme.surface,
                       border: OutlineInputBorder(
-                        borderRadius: AppBorders.borderRadiusMD,
-                        borderSide: const BorderSide(width: 1),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: AppBorders.borderRadiusMD,
-                        borderSide: const BorderSide(width: 1),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: AppBorders.borderRadiusMD,
-                        borderSide: const BorderSide(width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(width: 2),
                       ),
-                      contentPadding: EdgeInsets.all(AppSpacing.md),
-                      labelStyle: Theme.of(context).textTheme.bodyMedium,
-                      hintStyle: Theme.of(context).textTheme.bodyMedium,
-                      floatingLabelStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      labelStyle: UIUtils.getSubtitleStyle(context),
+                      hintStyle: UIUtils.getSubtitleStyle(context),
+                      floatingLabelStyle: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
+                        fontSize: 14,
                       ),
                     ),
                   ),
-                  popupProps: const PopupProps.menu(
+                  popupProps: PopupProps.menu(
                     showSearchBox: true,
-                    searchFieldProps: TextFieldProps(
+                    searchFieldProps: const TextFieldProps(
                       decoration: InputDecoration(
                         hintText: 'Buscar cliente...',
                         prefixIcon: Icon(Icons.search),
@@ -351,7 +352,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                   ),
                   compareFn: (Cliente cliente1, Cliente cliente2) => cliente1.id == cliente2.id,
                 ),
-                SizedBox(height: AppSpacing.md),
+                FormSpacing.verticalMedium(),
                 DropdownButtonFormField<String>(
                   value: _ordenEditable.estado,
                   decoration: const InputDecoration(
@@ -373,16 +374,16 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
             ),
           ),
         ),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 16),
         // --- JOBS SECTION ---
         Card(
             child: Padding(
-          padding: EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsets.all(AppSpacing.sm),
+                padding: const EdgeInsets.all(8.0),
                 child:
                     Text('Trabajos', style: Theme.of(context).textTheme.titleLarge),
               ),
@@ -399,7 +400,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                       IconButton(
                         icon: Icon(
                           Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.error,
+                          color: UIUtils.getErrorColor(context),
                         ),
                         onPressed: () {
                           setState(() {
@@ -417,22 +418,22 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text("Añadir Trabajo"),
+                  icon: Icon(Icons.add),
+                  label: Text("Añadir Trabajo"),
                   onPressed: _showAddTrabajoDialog,
                 ),
               )
             ],
           ),
         )),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 16),
         // --- FINANCIAL SECTION ---
         _buildFinancialDetails(),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 16),
         // --- DELIVERY DATE AND TIME SECTION ---
         Card(
           child: Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -442,271 +443,254 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                 ),
-                SizedBox(height: AppSpacing.md),
-                // Fecha y hora de entrega - Responsive layout
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isMobile = constraints.maxWidth < 600;
-                    
-                    if (isMobile) {
-                      return Column(
-                        children: [
-                          // Fecha en móvil
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                              borderRadius: AppBorders.borderRadiusMD,
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                              ),
-                            ),
-                            child: InkWell(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: _ordenEditable.fechaEntrega,
-                                  firstDate: DateTime(2020, 1, 1),
-                                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                                  locale: const Locale('es', 'ES'),
-                                );
-                                if (picked != null) {
-                                  setState(() => _ordenEditable.fechaEntrega = picked);
-                                }
-                              },
-                              child: Row(
-                                children: [
-                                  Icon(Icons.calendar_today_rounded,
-                                      color: Theme.of(context).colorScheme.primary),
-                                  SizedBox(width: AppSpacing.sm),
-                                  Flexible(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Fecha de Entrega',
-                                          style: Theme.of(context).textTheme.bodyMedium,
-                                        ),
-                                        Text(
-                                          DateTimeUtils.formatDate(_ordenEditable.fechaEntrega),
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
+                const SizedBox(height: 16),
+                // Fecha y hora de entrega - Responsive
+                ResponsiveLayout(
+                  mobile: Column(
+                    children: [
+                      // Fecha en móvil
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: UIUtils.cardDecoration(context),
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _ordenEditable.fechaEntrega,
+                              firstDate: DateTime(
+                                  2020, 1, 1), // Permite fechas desde 2020
+                              lastDate: DateTime.now()
+                                  .add(const Duration(days: 365)),
+                              locale: const Locale('es', 'ES'), // Español
+                              // Configurar el primer día de la semana como lunes
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    datePickerTheme: DatePickerThemeData(
+                                      // Configurar que la semana inicie con lunes
+                                      dayOverlayColor:
+                                          MaterialStateProperty.all(
+                                              Colors.transparent),
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: AppSpacing.md),
-                          // Hora en móvil
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                              borderRadius: AppBorders.borderRadiusMD,
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                              ),
-                            ),
-                            child: InkWell(
-                              onTap: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: _ordenEditable.horaEntrega,
+                                  child: child!,
                                 );
-                                if (picked != null) {
-                                  setState(() => _ordenEditable.horaEntrega = picked);
-                                }
                               },
-                              child: Row(
-                                children: [
-                                  Icon(Icons.access_time_rounded,
-                                      color: Theme.of(context).colorScheme.primary),
-                                  SizedBox(width: AppSpacing.sm),
-                                  Flexible(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Hora de Entrega',
-                                          style: Theme.of(context).textTheme.bodyMedium,
-                                        ),
-                                        Text(
-                                          DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
-                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    } else {
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                                borderRadius: AppBorders.borderRadiusMD,
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                                ),
-                              ),
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _ordenEditable.fechaEntrega,
-                                    firstDate: DateTime(2020, 1, 1),
-                                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                                    locale: const Locale('es', 'ES'),
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _ordenEditable.fechaEntrega = picked);
-                                  }
-                                },
-                                child: Row(
+                            );
+                            if (picked != null) {
+                              setState(
+                                  () => _ordenEditable.fechaEntrega = picked);
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.calendar_today_rounded,
+                                  color:
+                                      Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Icon(Icons.calendar_today_rounded,
-                                        color: Theme.of(context).colorScheme.primary),
-                                    SizedBox(width: AppSpacing.sm),
-                                    Flexible(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Fecha de Entrega',
-                                            style: Theme.of(context).textTheme.bodyMedium,
-                                          ),
-                                          Text(
-                                            DateFormat('EEEE, d \'de\' MMMM \'de\' yyyy', 'es_ES')
-                                                .format(_ordenEditable.fechaEntrega),
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
+                                    Text(
+                                      'Fecha de Entrega',
+                                      style: UIUtils.getSubtitleStyle(context),
+                                    ),
+                                    Text(
+                                      DateTimeUtils.formatDate(_ordenEditable.fechaEntrega),
+                                      style: UIUtils.getTitleStyle(context).copyWith(
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                          SizedBox(width: AppSpacing.md),
-                          Expanded(
-                            child: Container(
-                              padding: EdgeInsets.all(AppSpacing.md),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-                                borderRadius: AppBorders.borderRadiusMD,
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-                                ),
-                              ),
-                              child: InkWell(
-                                onTap: () async {
-                                  final picked = await showTimePicker(
-                                    context: context,
-                                    initialTime: _ordenEditable.horaEntrega,
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _ordenEditable.horaEntrega = picked);
-                                  }
-                                },
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.access_time_rounded,
-                                        color: Theme.of(context).colorScheme.primary),
-                                    SizedBox(width: AppSpacing.sm),
-                                    Flexible(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Hora de Entrega',
-                                            style: Theme.of(context).textTheme.bodyMedium,
-                                          ),
-                                          Text(
-                                            DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
-                                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        SizedBox(height: AppSpacing.md),
-        // --- NOTES SECTION ---
-        Card(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
-            child: TextFormField(
-              initialValue: _ordenEditable.notas,
-              decoration: const InputDecoration(
-                  labelText: 'Notas', 
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true),
-              maxLines: 3,
-              onSaved: (value) => _ordenEditable.notas = value,
-            ),
-          ),
-        ),
-        SizedBox(height: AppSpacing.lg),
-
-        // --- ARCHIVOS ADJUNTOS SECTION ---
-        // Nota: ArchivosAdjuntosWidget usa el sistema complejo, pero lo mantenemos por ahora
-        // ya que es un widget complejo que requiere migración separada
-        Card(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Archivos Adjuntos',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        ),
                       ),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Los archivos adjuntos se mostrarán aquí una vez que se migre el widget ArchivosAdjuntosWidget.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      FormSpacing.verticalMedium(),
+                      // Hora en móvil
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: UIUtils.cardDecoration(context),
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: _ordenEditable.horaEntrega,
+                            );
+                            if (picked != null) {
+                              setState(
+                                  () => _ordenEditable.horaEntrega = picked);
+                            }
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.access_time_rounded,
+                                  color:
+                                      Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 12),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Hora de Entrega',
+                                      style: UIUtils.getSubtitleStyle(context),
+                                    ),
+                                    Text(
+                                      DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
+                                      style: UIUtils.getTitleStyle(context).copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  tablet: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: UIUtils.cardDecoration(context),
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _ordenEditable.fechaEntrega,
+                                firstDate: DateTime(
+                                    2020, 1, 1), // Permite fechas desde 2020
+                                lastDate: DateTime.now()
+                                    .add(const Duration(days: 365)),
+                                locale: const Locale('es', 'ES'), // Español
+                                // Configurar el primer día de la semana como lunes
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      datePickerTheme: DatePickerThemeData(
+                                        // Configurar que la semana inicie con lunes
+                                        dayOverlayColor:
+                                            MaterialStateProperty.all(
+                                                Colors.transparent),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() =>
+                                    _ordenEditable.fechaEntrega = picked);
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_today_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Fecha de Entrega',
+                                        style: UIUtils.getSubtitleStyle(context),
+                                      ),
+                                      Text(
+                                        DateFormat(
+                                                'EEEE, d \'de\' MMMM \'de\' yyyy',
+                                                'es_ES')
+                                            .format(
+                                                _ordenEditable.fechaEntrega),
+                                        style: UIUtils.getTitleStyle(context).copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      FormSpacing.horizontalMedium(),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: UIUtils.cardDecoration(context),
+                          child: InkWell(
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: _ordenEditable.horaEntrega,
+                              );
+                              if (picked != null) {
+                                setState(() =>
+                                    _ordenEditable.horaEntrega = picked);
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.access_time_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Hora de Entrega',
+                                        style: UIUtils.getSubtitleStyle(context),
+                                      ),
+                                      Text(
+                                        DateTimeUtils.formatTime(_ordenEditable.horaEntrega),
+                                        style: UIUtils.getTitleStyle(context).copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
         ),
-        SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 16),
+        // --- NOTES SECTION ---
+        TextFormField(
+          initialValue: _ordenEditable.notas,
+          decoration: const InputDecoration(
+              labelText: 'Notas', border: OutlineInputBorder()),
+          maxLines: 3,
+          onSaved: (value) => _ordenEditable.notas = value,
+        ),
+        FormSpacing.verticalLarge(),
+
+        // --- ARCHIVOS ADJUNTOS SECTION ---
+        ArchivosAdjuntosWidget(orden: widget.orden),
+        FormSpacing.verticalLarge(),
 
         // --- SAVE BUTTON ---
         ElevatedButton.icon(
@@ -717,55 +701,27 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
           ),
           onPressed: _guardarCambios,
         ),
-        SizedBox(height: AppSpacing.md),
+        FormSpacing.verticalMedium(),
       ],
     );
   }
 
   Widget _buildHistorialTab() {
     if (_ordenEditable.historial.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.history,
-              size: 64,
-              color: Colors.grey.shade400,
-            ),
-            SizedBox(height: AppSpacing.md),
-            Text(
-              "No hay historial para esta orden",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      );
+      return Center(child: Text("No hay historial para esta orden."));
     }
     return ListView.builder(
-      padding: EdgeInsets.all(AppSpacing.md),
       itemCount: _ordenEditable.historial.length,
       itemBuilder: (context, index) {
-        final evento = _ordenEditable.historial.reversed.toList()[index]; // Show newest first
-        return Card(
-          margin: EdgeInsets.only(bottom: AppSpacing.sm),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: Icon(
-                Icons.info_outline,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            title: Text(evento.cambio),
-            subtitle: Text('Por: ${evento.usuarioNombre}'),
-            trailing: Text(
-              DateTimeUtils.formatDateTime(evento.timestamp.toLocal()),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
+        final evento =
+            _ordenEditable.historial.reversed.toList()[index]; // Show newest first
+        return ListTile(
+          leading: Icon(Icons.info_outline),
+          title: Text(evento.cambio),
+          subtitle: Text('Por: ${evento.usuarioNombre}'),
+          // Formatear fecha y hora en español
+          trailing: Text(
+              DateTimeUtils.formatDateTime(evento.timestamp.toLocal())),
         );
       },
     );
@@ -774,20 +730,17 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   Card _buildFinancialDetails() {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             _financialRow(
                 'Total Bruto:', 'Bs ${_ordenEditable.totalBruto.toStringAsFixed(2)}'),
-            SizedBox(height: AppSpacing.md),
+            FormSpacing.verticalMedium(),
             TextFormField(
               controller: _totalPersonalizadoController,
               decoration:
-                  const InputDecoration(
-                    labelText: 'Total Personalizado (Bs)',
-                    border: OutlineInputBorder(),
-                  ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  const InputDecoration(labelText: 'Total Personalizado (Bs)'),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
               ],
@@ -800,24 +753,18 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 _ordenEditable.totalPersonalizado = double.tryParse(value ?? '');
               },
             ),
-            SizedBox(height: AppSpacing.sm),
+            FormSpacing.verticalSmall(),
             _financialRow('Rebaja:',
                 'Bs ${_ordenEditable.rebaja > 0 ? _ordenEditable.rebaja.toStringAsFixed(2) : '0.00'}'),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              child: const Divider(),
-            ),
+            const Divider(height: 24),
             _financialRow(
                 'Total Final:', 'Bs ${_ordenEditable.total.toStringAsFixed(2)}',
                 isTotal: true),
-            SizedBox(height: AppSpacing.md),
+            FormSpacing.verticalMedium(),
             TextFormField(
               controller: _adelantoController,
-              decoration: const InputDecoration(
-                labelText: 'Adelanto (Bs)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Adelanto (Bs)'),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))
               ],
@@ -830,7 +777,7 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
                 _ordenEditable.adelanto = double.tryParse(value!) ?? 0.0;
               },
             ),
-            SizedBox(height: AppSpacing.sm),
+            FormSpacing.verticalSmall(),
             _financialRow('Saldo Pendiente:',
                 'Bs ${_ordenEditable.saldo.toStringAsFixed(2)}',
                 isTotal: true),
@@ -841,29 +788,22 @@ class _OrdenDetalleScreenState extends State<OrdenDetalleScreen> {
   }
 
   Widget _financialRow(String label, String value, {bool isTotal = false}) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             label, 
             style: isTotal 
-                ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
-                : theme.textTheme.titleMedium,
+                ? UIUtils.getTitleStyle(context).copyWith(fontWeight: FontWeight.bold)
+                : UIUtils.getTitleStyle(context),
           ),
           Text(
             value, 
             style: isTotal 
-                ? theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  )
-                : theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary,
-                  ),
+                ? UIUtils.getPriceStyle(context, isLarge: true)
+                : UIUtils.getPriceStyle(context),
           ),
         ],
       ),
